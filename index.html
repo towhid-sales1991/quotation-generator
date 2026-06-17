@@ -3,15 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IDEAL FASTENER — Quotation Generator</title>
+<title>Sales Analytics Dashboard</title>
 
-<!-- PWA -->
+<!-- PWA support -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a0e17">
-<link rel="icon" href="icon-192.png">
+<meta name="background-color" content="#0a0e17">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 
 <!-- Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
@@ -23,10 +26,9 @@
   --line:#1f2c42;
   --text:#e7ecf5;
   --muted:#7c8aa3;
-  --accent:#d3a85c;       /* brass — signature tone for this tool */
-  --accent-soft:#8a6a35;
-  --accent-2:#3ddc97;     /* confirm / total green */
-  --accent-3:#5b8def;     /* info blue */
+  --accent:#ff7a45;       /* signal orange */
+  --accent-2:#3ddc97;     /* signal green */
+  --accent-3:#5b8def;     /* signal blue */
   --danger:#ff5d6c;
   --radius:14px;
   --mono: 'JetBrains Mono', 'Courier New', monospace;
@@ -40,62 +42,72 @@
 body{
   font-family:var(--sans);
   background:
-    radial-gradient(circle at 85% -10%, rgba(211,168,92,0.08), transparent 40%),
-    radial-gradient(circle at 0% 100%, rgba(61,220,151,0.05), transparent 35%),
+    radial-gradient(circle at 85% -10%, rgba(91,141,239,0.10), transparent 40%),
+    radial-gradient(circle at 0% 100%, rgba(61,220,151,0.06), transparent 35%),
     var(--bg);
   color:var(--text);
   min-height:100vh;
   line-height:1.5;
 }
 
-/* ===================== ZIPPER DIVIDER (signature element) ===================== */
-.zip-divider{
-  height:14px; width:100%;
-  background-image:
-    linear-gradient(135deg, var(--line) 25%, transparent 25%),
-    linear-gradient(225deg, var(--line) 25%, transparent 25%);
-  background-size:14px 14px;
-  background-position:0 0;
-  opacity:.55;
-}
-.zip-divider.gold{
-  background-image:
-    linear-gradient(135deg, var(--accent) 25%, transparent 25%),
-    linear-gradient(225deg, var(--accent) 25%, transparent 25%);
-  opacity:.35;
-}
-
 /* ===================== HEADER ===================== */
 .topbar{
   position:sticky; top:0; z-index:50;
-  display:flex; align-items:center; justify-content:space-between; gap:18px;
+  display:flex; align-items:center; justify-content:space-between;
   padding:18px 28px;
-  background:rgba(10,14,23,0.9);
+  background:rgba(10,14,23,0.85);
   backdrop-filter:blur(14px);
   border-bottom:1px solid var(--line);
-  flex-wrap:wrap;
 }
-.brand{ display:flex; align-items:center; gap:16px; }
-.brand img{ height:42px; display:block; border-radius:4px; }
-.brand .names h1{
-  font-family:'Sora', var(--sans); font-size:18px; font-weight:800; letter-spacing:.2px;
+.brand{
+  display:flex; align-items:center; gap:12px;
 }
-.brand .names .sub{
-  font-size:11px; color:var(--muted); font-family:var(--mono); letter-spacing:1.5px; text-transform:uppercase; margin-top:2px;
+.brand .mark{
+  width:38px; height:38px; border-radius:10px;
+  background:linear-gradient(135deg,var(--accent),var(--accent-3));
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--mono); font-weight:700; font-size:16px; color:#0a0e17;
 }
-.pricelist-tag{
-  font-size:11px; color:var(--muted); font-family:var(--mono);
-  border:1px solid var(--line); padding:7px 14px; border-radius:999px;
+.brand h1{
+  font-family:'Sora', var(--sans);
+  font-size:18px; font-weight:700; letter-spacing:0.3px;
 }
-.pricelist-tag b{ color:var(--accent); }
+.brand .sub{
+  font-size:11px; color:var(--muted); font-family:var(--mono); letter-spacing:1.5px; text-transform:uppercase;
+}
+.topbar nav{ display:flex; gap:6px; flex-wrap:wrap; }
+.topbar nav button{
+  background:transparent; border:1px solid var(--line); color:var(--muted);
+  padding:9px 16px; border-radius:999px; font-size:13px; font-weight:600;
+  cursor:pointer; transition:all .15s; font-family:var(--sans);
+}
+.topbar nav button:hover{ color:var(--text); border-color:var(--accent); }
+.topbar nav button.active{ background:var(--accent); color:#0a0e17; border-color:var(--accent); }
+
+.sync-pill{
+  display:flex; align-items:center; gap:8px; font-size:12px; font-family:var(--mono);
+  padding:6px 14px; border-radius:999px; border:1px solid var(--line); color:var(--muted);
+}
+.sync-dot{ width:8px; height:8px; border-radius:50%; background:var(--muted); }
+.sync-dot.live{ background:var(--accent-2); box-shadow:0 0 0 0 rgba(61,220,151,.7); animation:pulse 2s infinite; }
+.sync-dot.err{ background:var(--danger); }
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(61,220,151,.5);}
+  70%{box-shadow:0 0 0 6px rgba(61,220,151,0);}
+  100%{box-shadow:0 0 0 0 rgba(61,220,151,0);}
+}
 
 /* ===================== LAYOUT ===================== */
-.container{ max-width:1300px; margin:0 auto; padding:28px; }
-.page-head{ margin-bottom:22px; }
-.page-head h2{ font-family:'Sora', var(--sans); font-size:25px; font-weight:800; letter-spacing:-0.3px; }
-.page-head p{ color:var(--muted); font-size:14px; margin-top:5px; }
+.container{ max-width:1400px; margin:0 auto; padding:28px; }
+.view{ display:none; animation:fadein .3s ease; }
+.view.active{ display:block; }
+@keyframes fadein{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
 
-/* ===================== CARDS ===================== */
+.page-head{ margin-bottom:24px; }
+.page-head h2{ font-family:'Sora', var(--sans); font-size:26px; font-weight:800; letter-spacing:-0.3px; }
+.page-head p{ color:var(--muted); font-size:14px; margin-top:4px; }
+
+/* ===================== CARDS / PANELS ===================== */
 .card{
   background:linear-gradient(180deg, var(--panel-2), var(--panel));
   border:1px solid var(--line);
@@ -103,10 +115,23 @@ body{
   padding:22px;
 }
 .card + .card{ margin-top:18px; }
-.card h3{ font-family:'Sora', var(--sans); font-size:15px; font-weight:700; margin-bottom:16px; letter-spacing:.2px; }
-.card h3 span{ color:var(--muted); font-weight:500; font-size:12px; }
 
-/* ===================== FORMS ===================== */
+/* KPI grid */
+.kpi-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:18px; }
+.kpi{
+  background:linear-gradient(180deg, var(--panel-2), var(--panel));
+  border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px;
+  position:relative; overflow:hidden;
+}
+.kpi::after{
+  content:''; position:absolute; right:-30px; top:-30px; width:90px; height:90px; border-radius:50%;
+  background:radial-gradient(circle, var(--kpi-glow, var(--accent)) 0%, transparent 70%); opacity:.18;
+}
+.kpi .label{ font-size:11px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); font-family:var(--mono); }
+.kpi .value{ font-family:'Sora', var(--sans); font-size:30px; font-weight:800; margin-top:8px; }
+.kpi .delta{ font-size:12px; margin-top:6px; color:var(--accent-2); font-family:var(--mono); }
+
+/* Forms */
 .form-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
 .field label{ display:block; font-size:12px; color:var(--muted); margin-bottom:6px; font-weight:600; letter-spacing:.3px; }
 .field input, .field select{
@@ -114,9 +139,8 @@ body{
   border-radius:10px; color:var(--text); font-size:14px; font-family:var(--sans);
   transition:border-color .15s;
 }
-.field input:focus, .field select:focus{ outline:none; border-color:var(--accent); }
+.field input:focus, .field select:focus{ outline:none; border-color:var(--accent-3); }
 .field input::placeholder{ color:#445069; }
-.field input:disabled{ opacity:.45; cursor:not-allowed; }
 
 .btn{
   border:none; border-radius:10px; padding:12px 22px; font-weight:700; font-size:14px;
@@ -124,77 +148,82 @@ body{
   display:inline-flex; align-items:center; gap:8px;
 }
 .btn:active{ transform:scale(.97); }
-.btn-primary{ background:var(--accent); color:#1a1306; }
-.btn-primary:hover{ box-shadow:0 6px 20px rgba(211,168,92,.3); }
+.btn-primary{ background:var(--accent); color:#0a0e17; }
+.btn-primary:hover{ box-shadow:0 6px 20px rgba(255,122,69,.3); }
 .btn-secondary{ background:transparent; border:1px solid var(--line); color:var(--text); }
 .btn-secondary:hover{ border-color:var(--accent-3); color:var(--accent-3); }
+.btn-green{ background:var(--accent-2); color:#06231a; }
+.btn-green:hover{ box-shadow:0 6px 20px rgba(61,220,151,.25); }
 .btn-blue{ background:var(--accent-3); color:#06121f; }
 .btn-blue:hover{ box-shadow:0 6px 20px rgba(91,141,239,.25); }
-.btn:disabled{ opacity:.4; cursor:not-allowed; box-shadow:none !important; transform:none !important; }
+.btn:disabled{ opacity:.5; cursor:not-allowed; }
+
 .actions-row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:18px; }
 
-/* ===================== ITEM SEARCH COMBOBOX ===================== */
-.combo{ position:relative; }
-.combo-list{
-  position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:40;
-  background:var(--panel-2); border:1px solid var(--line); border-radius:10px;
-  max-height:320px; overflow-y:auto; box-shadow:0 16px 40px rgba(0,0,0,.5);
-  display:none;
+/* Filters bar */
+.filters{
+  display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:18px;
 }
-.combo-list.show{ display:block; }
-.combo-item{ padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--line); }
-.combo-item:last-child{ border-bottom:none; }
-.combo-item:hover, .combo-item.hi{ background:rgba(211,168,92,.12); }
-.combo-item .code{ font-family:var(--mono); font-size:12.5px; color:var(--accent); font-weight:700; }
-.combo-item .desc{ font-size:12px; color:var(--muted); margin-top:2px; }
-.combo-empty{ padding:16px; font-size:13px; color:var(--muted); text-align:center; }
+.filters .field{ min-width:160px; }
 
-/* Selected item info chips */
-.item-info{
-  display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px;
-  margin-top:16px; padding:16px; background:#0b1220; border:1px solid var(--line); border-radius:10px;
-}
-.item-info .stat .label{ font-size:10.5px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); font-family:var(--mono); }
-.item-info .stat .value{ font-size:16px; font-weight:700; margin-top:4px; font-family:'Sora',var(--sans); }
-.item-info.placeholder{ color:var(--muted); font-size:13px; text-align:center; padding:24px; }
+/* Charts */
+.chart-grid{ display:grid; grid-template-columns:1.4fr 1fr; gap:18px; margin-bottom:18px; }
+.chart-grid .card{ margin-top:0; }
+@media (max-width:1000px){ .chart-grid{ grid-template-columns:1fr; } }
+.chart-box{ position:relative; height:300px; }
+.card h3{ font-family:'Sora', var(--sans); font-size:15px; font-weight:700; margin-bottom:14px; letter-spacing:.2px; }
+.card h3 span{ color:var(--muted); font-weight:500; font-size:12px; }
 
-/* Length row */
-.len-row{ display:flex; align-items:flex-end; gap:10px; }
-.len-row .field{ flex:1; }
-.len-swap{ color:var(--muted); font-size:18px; padding-bottom:11px; }
-
-/* Unit price display */
-.unit-price-box{
-  margin-top:18px; padding:18px 20px; border-radius:12px;
-  background:linear-gradient(135deg, rgba(211,168,92,.14), rgba(211,168,92,.04));
-  border:1px solid var(--accent-soft);
-  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
-}
-.unit-price-box .label{ font-size:12px; color:var(--muted); font-family:var(--mono); text-transform:uppercase; letter-spacing:1px; }
-.unit-price-box .price{ font-family:'Sora',var(--sans); font-size:28px; font-weight:800; color:var(--accent); }
-.unit-price-box .price.dim{ color:var(--muted); font-size:18px; font-weight:600; }
-
-/* ===================== TABLE ===================== */
+/* Table */
 .table-wrap{
-  overflow-x:auto; border-radius:10px; border:1px solid var(--line);
+  overflow-x:auto; overflow-y:auto; max-height:65vh;
+  border-radius:10px; border:1px solid var(--line);
 }
-table{ width:100%; border-collapse:collapse; font-size:13px; min-width:880px; }
+.table-wrap::-webkit-scrollbar{ height:10px; width:10px; }
+.table-wrap::-webkit-scrollbar-track{ background:#0b1220; }
+.table-wrap::-webkit-scrollbar-thumb{ background:#2a3b58; border-radius:6px; }
+.table-wrap::-webkit-scrollbar-thumb:hover{ background:var(--accent-3); }
+table{ width:100%; border-collapse:collapse; font-size:13px; min-width:1000px; }
 thead th{
   background:#0b1220; text-align:left; padding:12px 14px; font-size:11px; text-transform:uppercase;
   letter-spacing:1px; color:var(--muted); font-family:var(--mono); white-space:nowrap;
-  border-bottom:1px solid var(--line);
+  border-bottom:1px solid var(--line); position:sticky; top:0;
 }
-tbody td{ padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:middle; }
-tbody tr:hover{ background:rgba(211,168,92,.04); }
+tbody td{ padding:11px 14px; border-bottom:1px solid var(--line); white-space:nowrap; }
+tbody tr:hover{ background:rgba(91,141,239,.05); }
 tbody tr:last-child td{ border-bottom:none; }
-td.num, th.num{ text-align:right; }
+.tag{
+  display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700;
+  font-family:var(--mono); letter-spacing:.5px;
+}
+.tag-nylon{ background:rgba(91,141,239,.15); color:var(--accent-3); }
+.tag-metal{ background:rgba(255,122,69,.15); color:var(--accent); }
+.tag-vislon{ background:rgba(61,220,151,.15); color:var(--accent-2); }
+.tag-factory{ background:rgba(255,255,255,.06); color:var(--text); font-weight:600; }
 .row-del{ background:transparent; border:none; color:var(--danger); cursor:pointer; font-size:13px; font-weight:700; }
 .row-del:hover{ text-decoration:underline; }
-.pricing-sub{ font-size:11.5px; color:var(--muted); margin-top:5px; font-family:var(--mono); }
 
-.empty{ text-align:center; padding:50px 20px; color:var(--muted); }
-.empty .big{ font-size:38px; margin-bottom:10px; }
-.empty h4{ color:var(--text); font-size:15px; margin-bottom:6px; font-family:'Sora',var(--sans); }
+/* Empty state */
+.empty{
+  text-align:center; padding:60px 20px; color:var(--muted);
+}
+.empty .big{ font-size:40px; margin-bottom:10px; }
+.empty h4{ color:var(--text); font-size:16px; margin-bottom:6px; font-family:'Sora',var(--sans); }
+
+/* Setup / connection panel */
+.setup-steps{ display:flex; flex-direction:column; gap:14px; }
+.step{ display:flex; gap:14px; align-items:flex-start; }
+.step .num{
+  flex:none; width:28px; height:28px; border-radius:8px; background:var(--accent);
+  color:#0a0e17; font-family:var(--mono); font-weight:800; font-size:13px;
+  display:flex; align-items:center; justify-content:center;
+}
+.step .txt{ font-size:14px; color:var(--text); }
+.step .txt code{
+  background:#0b1220; border:1px solid var(--line); padding:2px 8px; border-radius:6px;
+  font-family:var(--mono); font-size:12px; color:var(--accent-2);
+}
+.step .txt a{ color:var(--accent-3); }
 
 footer{
   text-align:center; padding:30px 20px 40px; color:var(--muted); font-size:12px; font-family:var(--mono);
@@ -213,12 +242,10 @@ footer .logo-line span{ color:var(--accent); }
 .toast.err{ border-color:var(--danger); }
 
 @media (max-width:700px){
-  .topbar{ flex-direction:column; align-items:flex-start; }
+  .topbar{ flex-direction:column; gap:14px; align-items:flex-start; }
   .container{ padding:16px; }
-  .len-row{ flex-wrap:wrap; }
-  .len-swap{ display:none; }
+  .chart-box{ height:240px; }
 }
-
 </style>
 </head>
 <body>
@@ -226,501 +253,1536 @@ footer .logo-line span{ color:var(--accent); }
 <!-- ===================== TOP BAR ===================== -->
 <div class="topbar">
   <div class="brand">
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAfQAAAD+CAAAAADpUaiEAAAGrElEQVR42u3dSZLkOAxEUdz/0t6rrm6zCpEACc7fdzmESOBJCk2RaUYIIYQQQgghhBBCCCGEEEIIISQalRP4Vd9CEuc2cTqjljyocZ3VpBqA/iB6tI7j0AV6dynboAv0aW0H/SZ0Zz2gX4auK9EFem9Ju6AL9HndB/1C9FpVoF+JrtvQBXpnkzZBF+gTCUC/FV2gP4iuq9AFel+f9kAX6DMZQAcd9KvQdRG6QO/q1BboAh100MdKgA76IegCvadVO6ALdNBBT91Bg34JeqRt16ALdGv/fMgG6AK9eYZD0G1CQO+YIegPojepb41uGTO7HN2ORBfofTO8Dd1AT/nAykHoBjrobVO7H92OQxfooIPeMMOg+uboBvpb6J51AvT4cOvRBTrooA9BF+j3odtV6P3qoO+GXh8adNBBTygTdNCPQhfoCwcc0hpL2tRBPwfdQAcd9Lw6QQd9Lro60QX6pegG+ivoBjrowx4wAH0uukCfhy7QQd8c3UB/A91AvxM95aYQ6A2LAR100EHfA91AvwU9MGzXDEEHHXTQQQcd9Nb0T9ES1UGfgZ6+oYMOOuigg/4gukA/BT24BNBvRzfQQQcd9OCAoO+CLtBBry4A9LvRDXTQO/fvoG+CLtBBBx301Dd10A9Az1tPQN8JXaCDDjrooIPeqQ76FuhtrwYddNBBB/09dIG+N/oQPdAPRjfQl6NP7wfooCe8LYC+AbpABz3pgirox6Ib6KAn7CNAX48u0EEHHfTJt2RBP3tLF+i7omtcHkcX6KCDDrrdiS7Q90QX6KCDDjrooKeog74YXaCDDjrooLfPUK+iC3TXQqa2RKCDDjrooIOepA76UnSBPgxdoINeXAbooJ+OLtD3Qhfow9AFOuigg253o+tJdO2KLtBBBz1thtGegA76OvQh7XwDXdu2RGkjgR7dhe6KbqAPQzfQb0MX6EuvRKxA3/nYVqAPQd/6ImUiuoEeOg0eizFn756MrnPRRz1ikHaRZCK6plS4Gn3gcyVZTRHozej58wQd9CPQDfS+ae6BPvJUAPRF6AJ9DbqBDvrB6AZ61yS3QF956eNmdFuJLtBBB30KuoH+HLpdhp74J4+vRbe16PnmoHfND/Q70Q3059DtRXS9jW7L0TUA3UDvaOgG6Ab6VHLQ70O3d9H1KHpO87pHF+jT0LOatym6gd7ex/XoBvpc8ovR9RB6eu96JyLQB6IP6h3oqdMmhBBCCCGEEEIIIYQQQgghhBDyXyKfAakuoL7cf3+rOGzpsVXHtBOeyYtU+tfcvMsrv752u3zAI0mOUstDt6HLia4YevgxewtU+r8fOVeSDPSuhyf60L9fOXZLb0CP/bsRf6E7oXf+P/PmVtRYYuhKRA89OuYvdC90DUfXVeiFX/U+6bYBujLQC0ts63wMXZnoSkZXEd0/9JHov77MOZBbhq7SUfjW6KEPCba3wny1+4cNoHtKCra+XukU9GADm9BtDbp7R9uBXl+zf2w6xcluiO4r0of+58ffZ6fe3dQZ6BZBL83mz7f869tm6PYcuo5Dt4vQlYBuAfSGSjdDVzZ6fIxD0BVCd5RY6Nzm6HoN3UroCpSo49HtVy+ip7+t6Jrynv4XeqDSAvrPzg1Ct6noGoRu89DVU+n16O6brjuiWzd6+a5rcXnaD12186QyeuwNzzvs5/C+S/fxvbur0lvR5Zq666pv6GbN74OgLnTfu9D34cPP4R7Y0n988fHaMehqRPffiVAZ3Zx/l+X3SmRHbemlk6avF++L7j+yKd5oc50rVTt3MLpHvQvd0tAjh7PRSh9Dd7BnoGvSlm6xSi9DL91BrC4hE93y0P1vqgpWWj1H3BXd8aPvX5X/+ZrQeXodPbDz6kf/qlS1TnnvXx+FXrqAkYKunCdnvE1wr1L3ojs3mDHo1o9ubnRfpd8P5XV27kB02xbd/KtrU6UXoau9F/noSkHXHPRo5za6tVqZunfUXnRbiF6/Qgf6oejqrfQJdL2JnrClawa6taNrF3RbiK6WLV0XoH986z50a620PrkZ6EpErx9WH46uWqXV5cl/v2YcuhLQ64DOayCha+8qXtBy3jLPRq9WWj3ua7tuHGprxDwD/eeX56Fbc6VL0YM3kePoxcsmT6A7WOLvZ6noloBucXTLRrdedNfF5sJ3m9BtCbp1oLsEXcOeie66f+891q/tbBLRbTi6eYbNQLcsdIXRvwf0n+DNQ7cJ6J6noE9Bd9+Uj5/VT0K3eVkz6oq8UykhhBBCCCGEEEIIIYQQQgghhLyXfwBhsoHcbE64TwAAAABJRU5ErkJggg==" alt="Ideal Fastener Asia Ltd logo">
-    <div class="names">
-      <h1>IDEAL FASTENER CORPORATION</h1>
-      <div class="sub">Quotation Generator</div>
+    <div class="mark">SC</div>
+    <div>
+      <h1>Sales Analytics Dashboard</h1>
     </div>
   </div>
-  <div class="pricelist-tag">Price List effective <b>Feb 1, 2026</b> · all prices in <b>USD</b></div>
+  <nav>
+    <button class="nav-btn active" data-view="dashboard">Dashboard</button>
+    <button class="nav-btn" data-view="entry">Daily Entry</button>
+    <button class="nav-btn" data-view="records">All Records</button>
+    <button class="nav-btn" data-view="targets">Targets</button>
+  </nav>
+  <div class="sync-pill">
+    <div class="sync-dot" id="syncDot"></div>
+    <span id="syncText">Not connected</span>
+  </div>
 </div>
-<div class="zip-divider gold"></div>
 
 <div class="container">
 
+<!-- ===================== DASHBOARD VIEW ===================== -->
+<div class="view active" id="view-dashboard">
   <div class="page-head">
-    <h2>Build a Quotation</h2>
-    <p>Pick an item, optionally add the puller code / IP finish and a desired length, then add it to the quotation. Repeat for every item the customer needs, then export the final PDF.</p>
+    <h2>Overview</h2>
+    <p>Live snapshot of PI value, volume and mix across factories, products and sales team.</p>
   </div>
 
-  <!-- ===================== QUOTATION META ===================== -->
+  <div class="filters">
+    <div class="field">
+      <label>Period</label>
+      <select id="periodFilter">
+        <option value="all">All Time</option>
+        <option value="month">This Month</option>
+        <option value="quarter">This Quarter</option>
+        <option value="half">This Half Year</option>
+        <option value="year">This Year</option>
+        <option value="custom">Custom Range</option>
+      </select>
+    </div>
+    <div class="field" id="customFrom" style="display:none">
+      <label>From</label>
+      <input type="date" id="dateFrom">
+    </div>
+    <div class="field" id="customTo" style="display:none">
+      <label>To</label>
+      <input type="date" id="dateTo">
+    </div>
+    <div class="field">
+      <label>Factory</label>
+      <select id="factoryFilter">
+        <option value="all">All Factories</option>
+        <option value="IFBD">IFBD (Bangladesh)</option>
+        <option value="IFI">IFI (India)</option>
+        <option value="IFA">IFA (China)</option>
+        <option value="IFJS">IFJS (China)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Generic Item</label>
+      <select id="itemFilter">
+        <option value="all">All Items</option>
+        <option value="Nylon">Nylon</option>
+        <option value="Metal">Metal</option>
+        <option value="Vislon">Vislon</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Sales Person</label>
+      <select id="salesFilter">
+        <option value="all">All Sales Persons</option>
+      </select>
+    </div>
+    <button class="btn btn-secondary" onclick="applyFilters()">Apply Filters</button>
+    <button class="btn btn-secondary" onclick="clearFilters()">✕ Clear Filters</button>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi" style="--kpi-glow:var(--accent)">
+      <div class="label">Total PI Value</div>
+      <div class="value" id="kpiTotal">$0</div>
+      <div class="delta" id="kpiTotalSub">0 PIs</div>
+    </div>
+    <div class="kpi" style="--kpi-glow:var(--accent-3)">
+      <div class="label">Total Orders (PIs)</div>
+      <div class="value" id="kpiOrders">0</div>
+      <div class="delta" id="kpiOrdersSub">across all factories</div>
+    </div>
+    <div class="kpi" style="--kpi-glow:var(--accent-2)">
+      <div class="label">Top Buyer</div>
+      <div class="value" id="kpiTopBuyer">—</div>
+      <div class="delta" id="kpiTopBuyerSub">by PI value</div>
+    </div>
+    <div class="kpi" style="--kpi-glow:var(--accent)">
+      <div class="label">Top Sales Person</div>
+      <div class="value" id="kpiTopSales">—</div>
+      <div class="delta" id="kpiTopSalesSub">by PI value</div>
+    </div>
+    <div class="kpi" style="--kpi-glow:var(--accent-3)">
+      <div class="label">Top Customer</div>
+      <div class="value" id="kpiTopCustomer">—</div>
+      <div class="delta" id="kpiTopCustomerSub">by PI value</div>
+    </div>
+    <div class="kpi" style="--kpi-glow:var(--accent-2)">
+      <div class="label">New Sales</div>
+      <div class="value" id="kpiNewSales">0</div>
+      <div class="delta" id="kpiNewSalesSub">new customer/buyer PIs</div>
+    </div>
+  </div>
+
+  <!-- Target vs Achievement -->
   <div class="card">
-    <h3>Quotation Details</h3>
-    <div class="form-grid">
+    <h3>Target vs Achievement <span>(monthly, per sales person)</span></h3>
+    <div class="filters" style="margin-bottom:14px;">
       <div class="field">
-        <label>Quotation No.</label>
-        <input type="text" id="q_no">
+        <label>Year</label>
+        <select id="taYear"></select>
       </div>
       <div class="field">
-        <label>Date</label>
-        <input type="date" id="q_date">
+        <label>Month</label>
+        <select id="taMonth">
+          <option value="1">January</option>
+          <option value="2">February</option>
+          <option value="3">March</option>
+          <option value="4">April</option>
+          <option value="5">May</option>
+          <option value="6">June</option>
+          <option value="7">July</option>
+          <option value="8">August</option>
+          <option value="9">September</option>
+          <option value="10">October</option>
+          <option value="11">November</option>
+          <option value="12">December</option>
+        </select>
+      </div>
+      <button class="btn btn-secondary" onclick="renderTargetSection()">Apply</button>
+    </div>
+    <div class="table-wrap" style="max-height:none;">
+      <table>
+        <thead>
+          <tr>
+            <th>Sales Person</th><th>Target (USD)</th><th>Achievement (USD)</th>
+            <th>Remaining (USD)</th><th>Remaining (%)</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="taBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="card">
+      <h3>Target vs Achievement <span>(selected month, chart view)</span></h3>
+      <div class="chart-box"><canvas id="chartTargetAch"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Annual Growth <span>(Target vs Achievement, full year)</span></h3>
+      <div class="filters" style="margin-bottom:10px;">
+        <div class="field">
+          <label>Year</label>
+          <select id="growthYear"></select>
+        </div>
+        <button class="btn btn-secondary" onclick="renderGrowthSection()">Apply</button>
+      </div>
+      <div class="table-wrap" style="max-height:240px;">
+        <table>
+          <thead>
+            <tr><th>Sales Person</th><th>Annual Target</th><th>Annual Achievement</th><th>Growth</th></tr>
+          </thead>
+          <tbody id="growthBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="card">
+      <h3>PI Value Over Time <span>(trend by period selected)</span></h3>
+      <div class="chart-box"><canvas id="chartTrend"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Mix by Generic Item <span>(Nylon / Metal / Vislon)</span></h3>
+      <div class="chart-box"><canvas id="chartItem"></canvas></div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="card">
+      <h3>PI Value by Factory <span>(IFBD / IFI / IFA / IFJS)</span></h3>
+      <div class="chart-box"><canvas id="chartFactory"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>PI Value by Sales Person</h3>
+      <div class="chart-box"><canvas id="chartSales"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Top Customers by PI Value</h3>
+    <div class="chart-box" style="height:260px"><canvas id="chartCustomer"></canvas></div>
+  </div>
+
+  <div class="actions-row">
+    <button class="btn btn-green" onclick="exportExcel()">⬇ Export Excel</button>
+    <button class="btn btn-blue" onclick="exportPDF()">⬇ Export PDF Report</button>
+  </div>
+</div>
+
+<!-- ===================== ENTRY VIEW ===================== -->
+<div class="view" id="view-entry">
+  <div class="page-head">
+    <h2>Daily PI Entry</h2>
+    <p>Add a new Proforma Invoice record. It syncs instantly to the shared Google Sheet for all colleagues. Mark <b>"New Sales = Yes"</b> if this PI is from a brand new customer or buyer.</p>
+  </div>
+
+  <div class="card">
+    <div class="form-grid">
+      <div class="field">
+        <label>PI Date</label>
+        <input type="date" id="f_date">
+      </div>
+      <div class="field">
+        <label>Proforma Invoice No</label>
+        <input type="text" id="f_pino" placeholder="e.g. PI-2026-0145">
       </div>
       <div class="field">
         <label>Customer Name</label>
-        <input type="text" id="q_customer" placeholder="e.g. ABC Garments Ltd.">
+        <input type="text" id="f_customer" placeholder="e.g. ABC Apparel Ltd.">
       </div>
       <div class="field">
-        <label>Attn / Reference (optional)</label>
-        <input type="text" id="q_ref" placeholder="e.g. Buyer / PO reference">
+        <label>Buyer Name</label>
+        <input type="text" id="f_buyer" placeholder="e.g. H&M, Zara...">
       </div>
       <div class="field">
-        <label>Shipping Term</label>
-        <select id="q_shipterm">
-          <option value="Ex Works - DEPZ">Ex Works - DEPZ</option>
-          <option value="Ex Works - HK">Ex Works - HK</option>
-          <option value="Ex Works - China">Ex Works - China</option>
+        <label>Item Code</label>
+        <input type="text" id="f_itemcode" placeholder="e.g. ITM-3321">
+      </div>
+      <div class="field">
+        <label>Generic Item</label>
+        <select id="f_generic">
+          <option value="Nylon">Nylon</option>
+          <option value="Metal">Metal</option>
+          <option value="Vislon">Vislon</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Style Reference</label>
+        <input type="text" id="f_style" placeholder="e.g. SR-2026-A">
+      </div>
+      <div class="field">
+        <label>PI Value (USD)</label>
+        <input type="number" step="0.01" id="f_value" placeholder="e.g. 12500.00">
+      </div>
+      <div class="field">
+        <label>Factory</label>
+        <select id="f_factory">
+          <option value="IFBD">IFBD (Bangladesh)</option>
+          <option value="IFI">IFI (India)</option>
+          <option value="IFA">IFA (China)</option>
+          <option value="IFJS">IFJS (China)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Sales Person Name</label>
+        <input type="text" id="f_sales" placeholder="e.g. Towhid Ahmed">
+      </div>
+      <div class="field">
+        <label>New Sales</label>
+        <select id="f_newsales">
+          <option value="No">No</option>
+          <option value="Yes">Yes — New Customer/Buyer</option>
         </select>
       </div>
     </div>
+    <div class="actions-row">
+      <button class="btn btn-primary" id="addBtn" onclick="addRecord()">＋ Add Record</button>
+      <button class="btn btn-secondary" onclick="clearForm()">Clear Form</button>
+    </div>
+    <p style="margin-top:14px; font-size:12px; color:var(--muted)" id="entryStatus"></p>
+  </div>
+</div>
+
+<!-- ===================== RECORDS VIEW ===================== -->
+<div class="view" id="view-records">
+  <div class="page-head">
+    <h2>All Records</h2>
+    <p>Every PI entered by you and your colleagues, synced live from Google Sheets.</p>
   </div>
 
-  <!-- ===================== ADD ITEM ===================== -->
   <div class="card">
-    <h3>Add an Item <span>search by item code or description</span></h3>
-
-    <div class="combo">
-      <div class="field">
-        <label>Item</label>
-        <input type="text" id="itemSearch" placeholder="Type item code or description… e.g. NNBC56 or Antique Brass" autocomplete="off">
-      </div>
-      <div class="combo-list" id="itemList"></div>
+    <div class="actions-row" style="margin-top:0; margin-bottom:16px;">
+      <input type="text" id="searchBox" placeholder="Search customer, buyer, PI no, sales person..." style="flex:1; min-width:220px; padding:11px 13px; background:#0b1220; border:1px solid var(--line); border-radius:10px; color:var(--text); font-size:14px;" oninput="renderTable()">
+      <button class="btn btn-secondary" onclick="refreshData()">↻ Refresh</button>
+      <button class="btn btn-green" onclick="exportExcel()">⬇ Excel</button>
+      <button class="btn btn-blue" onclick="exportPDF()">⬇ PDF</button>
     </div>
-
-    <div class="item-info placeholder" id="itemInfo">No item selected yet — search and click an item above.</div>
-
-    <div class="form-grid" style="margin-top:18px;">
-      <div class="field">
-        <label>Puller Code <span style="color:var(--muted); font-weight:400;">(optional)</span></label>
-        <input type="text" id="pullerCode" placeholder="e.g. N36" disabled>
-      </div>
-      <div class="field">
-        <label>IP Finish <span style="color:var(--muted); font-weight:400;">(optional)</span></label>
-        <input type="text" id="ipFinish" placeholder="e.g. IP32" disabled>
-      </div>
-    </div>
-
-    <div class="form-grid" style="margin-top:14px;">
-      <div class="len-row" style="grid-column:1 / -1;">
-        <div class="field">
-          <label>Desired Length — CM <span style="color:var(--muted); font-weight:400;">(optional)</span></label>
-          <input type="number" id="lenCm" step="0.01" min="0" placeholder="e.g. 15" disabled>
-        </div>
-        <div class="len-swap">⇄</div>
-        <div class="field">
-          <label>Desired Length — INCH <span style="color:var(--muted); font-weight:400;">(optional)</span></label>
-          <input type="number" id="lenIn" step="0.01" min="0" placeholder="e.g. 6" disabled>
-        </div>
-      </div>
-    </div>
-
-    <div class="form-grid" style="margin-top:14px;">
-      <div class="field">
-        <label>Additional Charges, USD <span style="color:var(--muted); font-weight:400;">(optional, added to base price)</span></label>
-        <input type="number" id="addCharge" step="0.01" min="0" placeholder="e.g. 0.50" disabled>
-      </div>
-      <div class="field">
-        <label>Discount, % <span style="color:var(--muted); font-weight:400;">(optional, on base + add 1")</span></label>
-        <input type="number" id="discountPct" step="0.01" min="0" max="100" placeholder="e.g. 10" disabled>
-      </div>
-    </div>
-
-    <div class="unit-price-box">
-      <div>
-        <div class="label">Pricing Preview <span style="text-transform:none; letter-spacing:0;">(per 100 pcs)</span></div>
-        <div class="price dim" id="unitPriceDisplay">Select an item to see pricing</div>
-        <div id="pricingSub" class="pricing-sub"></div>
-      </div>
-      <button class="btn btn-primary" id="addBtn" onclick="addToQuotation()" disabled>＋ Add to Quotation</button>
-    </div>
-  </div>
-
-  <!-- ===================== QUOTATION TABLE ===================== -->
-  <div class="card">
-    <h3>Quotation Items <span id="lineCount">0 items</span></h3>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>#</th><th>Item Code</th><th>Description</th><th class="num">Length</th>
-            <th class="num">Base /100pcs</th><th class="num">Add 1" /100pcs</th><th class="num">Final Rate /100pcs</th><th></th>
+            <th>PI Date</th><th>PI No</th><th>Customer</th><th>Buyer</th><th>Item Code</th>
+            <th>Generic Item</th><th>Style Ref</th><th>PI Value</th><th>Factory</th><th>Sales Person</th><th>New Sales</th><th></th>
           </tr>
         </thead>
-        <tbody id="quoteBody"></tbody>
+        <tbody id="tableBody"></tbody>
       </table>
     </div>
-    <div class="empty" id="quoteEmpty">
-      <div class="big">🧾</div>
-      <h4>No items added yet</h4>
-      <p>Use the form above to add the first item to this quotation.</p>
-    </div>
-    <div class="actions-row">
-      <button class="btn btn-blue" onclick="exportPDF()">⬇ Export / Print PDF</button>
-      <button class="btn btn-secondary" onclick="clearQuotation()">✕ Clear Quotation</button>
+    <div class="empty" id="emptyState" style="display:none">
+      <div class="big">📊</div>
+      <h4>No records yet</h4>
+      <p>Go to <b>Daily Entry</b> to add your first PI, or check <b>Setup</b> to connect Google Sheets.</p>
     </div>
   </div>
+</div>
+
+<!-- ===================== TARGETS VIEW ===================== -->
+<div class="view" id="view-targets">
+  <div class="page-head">
+    <h2>Sales Targets</h2>
+    <p>Set monthly PI value targets for each sales person. These power the Target vs Achievement and Annual Growth sections on the Dashboard.</p>
+  </div>
+
+  <div class="card">
+    <div class="form-grid">
+      <div class="field">
+        <label>Sales Person Name</label>
+        <input type="text" id="t_sales" placeholder="e.g. Towhid Ahmed">
+      </div>
+      <div class="field">
+        <label>Year</label>
+        <input type="number" id="t_year" placeholder="e.g. 2026" min="2000" max="2100">
+      </div>
+      <div class="field">
+        <label>Month</label>
+        <select id="t_month">
+          <option value="1">January</option>
+          <option value="2">February</option>
+          <option value="3">March</option>
+          <option value="4">April</option>
+          <option value="5">May</option>
+          <option value="6">June</option>
+          <option value="7">July</option>
+          <option value="8">August</option>
+          <option value="9">September</option>
+          <option value="10">October</option>
+          <option value="11">November</option>
+          <option value="12">December</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Target Value (USD)</label>
+        <input type="number" step="0.01" id="t_value" placeholder="e.g. 50000">
+      </div>
+    </div>
+    <div class="actions-row">
+      <button class="btn btn-primary" id="targetBtn" onclick="addTarget()">＋ Add Target</button>
+      <button class="btn btn-secondary" onclick="clearTargetForm()">Clear Form</button>
+    </div>
+    <p style="margin-top:14px; font-size:12px; color:var(--muted)" id="targetStatus"></p>
+  </div>
+
+  <div class="card">
+    <h3>All Targets</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Sales Person</th><th>Year</th><th>Month</th><th>Target (USD)</th><th></th></tr>
+        </thead>
+        <tbody id="targetsBody"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="targetsEmpty" style="display:none">
+      <div class="big">🎯</div>
+      <h4>No targets set yet</h4>
+      <p>Use the form above to set monthly targets for each sales person.</p>
+    </div>
+  </div>
+</div>
+<div class="view" id="view-setup">
+  <div class="page-head">
+    <h2>Setup &amp; Connection</h2>
+    <p>Connect this dashboard to a shared Google Sheet so all colleagues see the same live data.</p>
+  </div>
+
+  <div class="card">
+    <h3>Step-by-step Google Sheets connection</h3>
+    <div class="setup-steps">
+      <div class="step">
+        <div class="num">1</div>
+        <div class="txt">Create a new Google Sheet. Rename the first tab to <code>Sales</code>. In row 1, add these exact headers in order:<br>
+        <code>PI Date | Proforma Invoice No | Customer Name | Buyer Name | Item Code | Generic Item | Style Reference | PI Value | Factory | Sales Person Name</code></div>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <div class="txt">Go to <a href="https://script.google.com" target="_blank">script.google.com</a> → <b>New Project</b>. Delete the default code and paste the Apps Script code (provided separately as <code>apps-script.gs</code>). Click the disk icon to save.</div>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <div class="txt">In the script editor, find the line <code>const SHEET_ID = "PASTE_YOUR_SHEET_ID_HERE";</code> and replace it with your sheet's ID (the long string in your Sheet's URL between <code>/d/</code> and <code>/edit</code>).</div>
+      </div>
+      <div class="step">
+        <div class="num">4</div>
+        <div class="txt">Click <b>Deploy → New deployment</b>. Type: <b>Web app</b>. Execute as: <b>Me</b>. Who has access: <b>Anyone</b>. Click <b>Deploy</b> and authorize permissions when prompted.</div>
+      </div>
+      <div class="step">
+        <div class="num">5</div>
+        <div class="txt">Copy the <b>Web app URL</b> you get (ends in <code>/exec</code>) and paste it below, then click Connect.</div>
+      </div>
+    </div>
+
+    <div class="form-grid" style="margin-top:20px; grid-template-columns:1fr;">
+      <div class="field">
+        <label>Google Apps Script Web App URL</label>
+        <input type="text" id="scriptUrl" placeholder="https://script.google.com/macros/s/XXXXXXX/exec">
+      </div>
+    </div>
+    <div class="actions-row">
+      <button class="btn btn-primary" onclick="connectSheet()">🔗 Connect</button>
+      <button class="btn btn-secondary" onclick="disconnectSheet()">Disconnect</button>
+      <button class="btn btn-secondary" onclick="downloadScript()">⬇ Download apps-script.gs</button>
+    </div>
+    <p style="margin-top:14px; font-size:12px; color:var(--muted)" id="setupStatus"></p>
+  </div>
+
+  <div class="card">
+    <h3>How colleagues use this</h3>
+    <p style="font-size:14px; color:var(--text); margin-bottom:8px;">Once connected and this file is published on GitHub Pages, share the page link with colleagues. The connection URL is saved inside this HTML file itself — so as long as everyone opens the same published page, they're automatically connected to the same shared sheet. No setup needed on their end.</p>
+    <p style="font-size:13px; color:var(--muted);">Tip: After connecting here, re-export this HTML (it auto-saves the URL in your browser) — or simply hardcode the URL into <code>index.html</code> before publishing so it's baked in for everyone.</p>
+  </div>
+</div>
 
 </div><!-- /container -->
 
-<div class="zip-divider"></div>
 <footer>
-  <div class="logo-line">QUOTATION GENERATOR <span>•</span> System designed &amp; engineered by <span>Towhid</span></div>
-  <div style="margin-top:6px;">IDEAL FASTENER CORPORATION · Powered by Claude</div>
+  <div class="logo-line">SALES COMMAND CENTER <span>•</span> System designed &amp; engineered by <span>Towhid</span></div>
+  <div style="margin-top:6px;">Powered by Claude · Built for daily PI tracking, quarterly &amp; annual reporting</div>
 </footer>
 
 <div class="toast" id="toast"></div>
 
 <script>
 /* ============================================================
-   ITEM DATA — [code, description, baseLengthInches, basePriceUSD, add1InchUSD]
-   Source: IFA Price List, effective Feb 1, 2026
+   CONFIG — paste your Apps Script Web App URL here before
+   publishing so everyone shares the same connection.
    ============================================================ */
-const ITEMS = [["NNBC26","NO.2 NICKEL BRASS ZIPPER (NICKEL FREE) AUTO-LOCK C/E",4.0,43.945,3.069],["NNBC29","NO.2 NICKEL BRASS ZIPPER (NICKEL FREE) SEMI AUTO-LOCK C/E",4.0,27.445,3.069],["NNBC36","NO.3 NICKEL BRASS ZIPPER (NICKEL FREE) C/E A/L",4.0,21.12,2.013],["NNBC36-O TYPE","NO.3 NICKEL BRASS ZIPPER (NICKEL FREE) WITH BOTH ENDS BOTTOM STOP SLIDER HEAD TO HEAD A/L",4.0,30.426,3.07],["NNBC459","NO.45 NICKEL BRASS ZIPPER (NICKEL FREE) SEMI AUTO-LOCK C/E",4.0,24.453,2.453],["NNBC46","NO.4 NICKEL BRASS ZIPPER (NICKEL FREE) C/E A/L",4.0,25.355,2.728],["NNBC499","NO.49 NICKEL BRASS ZIPPER (NICKEL FREE) SEMI AUTO-LOCK C/E",4.0,34.034,2.728],["NNBC56","NO.5 NICKEL BRASS ZIPPER (NICKEL FREE) C/E A/L",4.0,29.26,2.926],["NNBC56- X TYPE","NO.5 NICKEL BRASS ZIPPER (NICKEL FREE) WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,46.563,3.41],["NNBC59","NO.5 NICKEL BRASS ZIPPER (NICKEL FREE) SEMI AUTO-LOCK C/E",4.0,35.618,3.036],["NNBC76","NO.7 NICKEL BRASS ZIPPER (NICKEL FREE) C/E A/L",4.0,52.591,4.18],["NNBC86","NO.8 NICKEL BRASS ZIPPER (NICKEL FREE) C/E A/L",4.0,70.136,5.17],["NNBC106","NO.10 NICKEL BRASS ZIPPER (NICKEL FREE) C/E A/L",4.0,88.77,6.05],["NNBC106-X TYPE","NO. 10 NICKEL BRASS ZIPPER (NICKEL FREE) WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,116.743,6.974],["NNBO36","NO.3 NICKEL BRASS ZIPPER (NICKEL FREE) SEP A/L",8.0,46.904,2.013],["NNBO459","NO.45 NICKEL BRASS ZIPPER (NICKEL FREE) SEP SEMI A/L",8.0,52.635,2.45],["NNBO46","NO.4 NICKEL BRASS ZIPPER (NICKEL FREE) SEP A/L",8.0,52.558,2.728],["NNBO499","NO.49 NICKEL BRASS ZIPPER (NICKEL FREE) SEP SEMI A/L",8.0,61.908,2.728],["NNBO56","NO.5 NICKEL BRASS ZIPPER (NICKEL FREE) SEP A/L",8.0,53.878,2.926],["NNBO59","NO.5 NICKEL BRASS ZIPPER (NICKEL FREE) SEP SEMI A/L",8.0,65.065,3.036],["NNBO76","NO.7 NICKEL BRASS ZIPPER (NICKEL FREE) SEP A/L",12.0,113.19,4.18],["NNBO86","NO.8 NICKEL BRASS ZIPPER (NICKEL FREE) SEP A/L",12.0,125.73,5.17],["NNBO106","NO.10 NICKEL BRASS ZIPPER (NICKEL FREE) SEP A/L",12.0,154.715,6.05],["NNBM36","NO.3 NICKEL BRASS ZIPPER (NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,94.237,3.069],["NNBM56","NO.5 NICKEL BRASS ZIPPER (NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,104.709,3.41],["NNBM76","NO.7 NICKEL BRASS ZIPPER (NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,137.852,4.796],["NNBM86","NO.8 NICKEL BRASS ZIPPER (NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,153.945,6.105],["NNBM106","NO.10 NICKEL BRASS ZIPPER (NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,218.218,6.974],["MNNBC26","NO.2 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) AUTO-LOCK C/E",4.0,43.945,3.069],["MNNBC29","NO.2 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) SEMI AUTO-LOCK C/E",4.0,27.445,3.069],["MNNBC36","NO.3 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) C/E A/L",4.0,21.12,2.013],["MMNNBC36-O TYPE","NO.3 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) WITH BOTH ENDS BOTTOM STOP SLIDER HEAD TO HEAD A/L",4.0,30.426,3.07],["MNNBC459","NO.45 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) SEMI AUTO-LOCK C/E",4.0,24.453,2.453],["MNNBC46","NO.4 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) C/E A/L",4.0,25.355,2.728],["MNNBC499","NO.49 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) SEMI AUTO-LOCK C/E",4.0,34.034,2.728],["MNNBC56","NO.5 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) C/E A/L",4.0,29.26,2.926],["MNNBC56- X TYPE","NO.5 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,46.563,3.41],["MNNBC59","NO.5 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) SEMI AUTO-LOCK C/E",4.0,35.618,3.036],["MNNBC76","NO.7 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) C/E A/L",4.0,52.591,4.18],["MNNBC86","NO.8 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) C/E A/L",4.0,70.136,5.17],["MNNBC106","NO.10 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) C/E A/L",4.0,88.77,6.05],["MNNBC106-X TYPE","NO. 10 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,116.743,6.974],["MNNBO36","NO.3 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) SEP A/L",8.0,46.904,2.013],["MNNBO459","NO.45 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) SEP SEMI A/L",8.0,52.635,2.45],["MNNBO46","NO.4 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) SEP A/L",8.0,52.558,2.728],["MNNBO499","NO.49 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) SEP SEMI A/L",8.0,61.908,2.728],["MNNBO56","NO.5 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) SEP A/L",8.0,53.878,2.926],["MNNBO59","NO.5 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) SEP SEMI A/L",8.0,65.065,3.036],["MNNBO76","NO.7 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) SEP A/L",12.0,113.19,4.18],["MNNBO86","NO.8 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) SEP A/L",12.0,125.73,5.17],["MNNBO106","NO.10 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) SEP A/L",12.0,154.715,6.05],["MNNBM36","NO.3 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,94.237,3.069],["MNNBM56","NO.5 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,104.709,3.41],["MNNBM76","NO.7 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,137.852,4.796],["MNNBM86","NO.8 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,153.945,6.105],["MNNBM106","NO.10 MATTE NICKEL BRASS ZIPPER (MATTE NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,218.218,6.974],["ANBC26","NO.2 ANTIQUE NICKEL ZIPPER A/L C/E",4.0,41.976,2.827],["ANBC29","NO.2 ANTIQUE NICKEL ZIPPER SEMI A/L C/E",4.0,25.476,2.827],["ANBC36","NO.3 ANTIQUE NICKEL ZIPPER C/E A/L",4.0,17.754,1.991],["ANBC456","NO.45 ANTIQUE NICKEL ZIPPER C/E A/L",4.0,23.111,2.343],["ANBC459","NO.45 ANTIQUE NICKEL ZIPPER SEMI A/L C/E",4.0,23.111,2.343],["ANBC46","NO.4 ANTIQUE NICKEL ZIPPER C/E A/L",4.0,23.045,2.244],["ANBC499","NO.49 ANTIQUE NICKEL ZIPPER SEMI A/L C/E",4.0,25.839,2.585],["ANBC56","NO.5 ANTIQUE NICKEL ZIPPER C/E A/L",4.0,26.873,2.695],["ANBC56-X TYPE","NO.5 ANTIQUE NICKEL ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,48.576,3.48],["ANBC59","NO.5 ANTIQUE NICKEL ZIPPER SEMI A/L C/E",4.0,33.0,2.75],["ANBC76","NO.7 ANTIQUE NICKEL ZIPPER C/E A/L",4.0,52.635,4.18],["ANBC76-X TYPE","NO.7 ANTIQUE NICKEL ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,69.696,4.8],["ANBC86","NO.8 ANTIQUE NICKEL ZIPPER C/E A/L",4.0,70.114,5.181],["ANBC86-O TYPE","NO.8 ANTIQUE NICKEL ZIPPER WITH BOTH ENDS BOTTOM STOP SLIDER HEAD TO HEAD A/L",4.0,87.175,5.64],["ANBC106","NO.10 ANTIQUE NICKEL ZIPPER C/E A/L",4.0,84.898,6.743],["ANBC106-X TYPE","NO.10 ANTIQUE NICKEL ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,112.86,7.678],["ANBO36","NO.3 ANTIQUE NICKEL ZIPPER SEP A/L",8.0,39.292,1.991],["ANBO459","NO.45 ANTIQUE NICKEL ZIPPER SEP SEMI A/L",8.0,48.004,2.343],["ANBO46","NO.4 ANTIQUE NICKEL ZIPPER SEP A/L",8.0,43.769,2.244],["ANBO499","NO.49 ANTIQUE NICKEL ZIPPER SEP SEMI A/L",8.0,57.992,2.585],["ANBO56","NO.5 ANTIQUE NICKEL ZIPPER SEP A/L",8.0,48.136,2.695],["ANBO59","NO.5 ANTIQUE NICKEL ZIPPER SEP SEMI A/L",8.0,56.727,2.75],["ANBO76","NO.7 ANTIQUE NICKEL ZIPPER SEP A/L",12.0,118.514,4.18],["ANBO86","NO.8 ANTIQUE NICKEL ZIPPER SEP A/L",12.0,125.356,5.181],["ANBO106","NO.10 ANTIQUE NICKEL ZIPPER SEP A/L",12.0,184.129,6.743],["ANBM36","NO.3 ANTIQUE NICKEL ZIPPER SEP WITH TWO WAY SLIDER",12.0,86.416,3.124],["ANBM56","NO.5 ANTIQUE NICKEL ZIPPER SEP WITH TWO WAY SLIDER",12.0,96.008,3.476],["ANBM76","NO.7 ANTIQUE NICKEL ZIPPER SEP WITH TWO WAY SLIDER",12.0,140.91,4.796],["ANBM86","NO.8 ANTIQUE NICKEL ZIPPER SEP WITH TWO WAY SLIDER",12.0,156.574,5.643],["ANBM106","NO.10 ANTIQUE NICKEL ZIPPER SEP WITH TWO WAY SLIDER",12.0,218.218,7.678],["ABC26","NO.2 ANTIQUE BRASS ZIPPER A/L C/E",4.0,39.391,2.552],["ABC29","NO.2 ANTIQUE BRASS ZIPPER SEMI A/L C/E",4.0,22.891,2.552],["ABC36","NO.3 ANTIQUE BRASS ZIPPER C/E A/L",4.0,16.896,1.914],["ABC456","NO.45 ANTIQUE BRASS ZIPPER C/E A/L",4.0,21.483,2.013],["ABC46","NO.4 ANTIQUE BRASS ZIPPER C/E A/L",4.0,20.163,2.013],["ABC459","NO.45 ANTIQUE BRASS ZIPPER SEMI A/L C/E",4.0,21.483,2.013],["ABC499","NO.49 ANTIQUE BRASS ZIPPER SEMI A/L C/E",4.0,23.166,2.354],["ABC56","NO.5 ANTIQUE BRASS ZIPPER C/E A/L",4.0,23.496,2.244],["ABC56-X TYPE","NO.5 ANTIQUE BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,45.21,2.585],["ABC59","NO.5 ANTIQUE BRASS ZIPPER SEMI A/L C/E",4.0,29.315,2.794],["ABC76","NO.7 ANTIQUE BRASS ZIPPER C/E A/L",4.0,46.024,3.883],["ABC76-X TYPE","NO.7 ANTIQUE BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,63.085,4.499],["ABC76-O TYPE","NO.7 ANTIQUE BRASS ZIPPER WITH BOTH ENDS BOTTOM STOP SLIDER HEAD TO HEAD A/L",4.0,63.085,4.499],["ABC86","NO.8 ANTIQUE BRASS ZIPPER C/E A/L",4.0,58.476,4.301],["ABC86-X TYPE","NO.8 ANTIQUE BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,77.099,5.236],["ABC106","NO.10 ANTIQUE BRASS ZIPPER C/E A/L",4.0,73.964,5.038],["ABC106-X TYPE","NO.10 ANTIQUE BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,92.576,7.139],["ABO36","NO.3 ANTIQUE BRASS ZIPPER SEP A/L",8.0,38.632,1.914],["ABO459","NO.45 ANTIQUE BRASS ZIPPER SEP SEMI A/L",8.0,47.993,2.013],["ABO46","NO.4 ANTIQUE BRASS ZIPPER SEP A/L",8.0,35.882,2.013],["ABO499","NO.49 ANTIQUE BRASS ZIPPER SEP SEMI A/L",8.0,61.886,2.354],["ABO56","NO.5 ANTIQUE BRASS ZIPPER SEP A/L",8.0,42.889,2.244],["ABO59","NO.5 ANTIQUE BRASS ZIPPER SEP SEMI A/L",8.0,66.506,2.794],["ABO76","NO.7 ANTIQUE BRASS ZIPPER SEP A/L",12.0,94.303,3.883],["ABO86","NO.8 ANTIQUE BRASS ZIPPER SEP A/L",12.0,115.214,4.301],["ABO106","NO.10 ANTIQUE BRASS ZIPPER SEP A/L",12.0,153.186,5.038],["ABM36","NO.3 ANTIQUE BRASS ZIPPER SEP WITH TWO WAY SLIDER",12.0,69.641,2.233],["ABM56","NO.5 ANTIQUE BRASS ZIPPER SEP WITH TWO WAY SLIDER",12.0,77.374,2.59],["ABM76","NO.7 ANTIQUE BRASS ZIPPER SEP WITH TWO WAY SLIDER",12.0,120.153,4.499],["ABM86","NO.8 ANTIQUE BRASS ZIPPER SEP WITH TWO WAY SLIDER",12.0,133.441,5.236],["ABM106","NO.10 ANTIQUE BRASS ZIPPER SEP WITH TWO WAY SLIDER",12.0,200.09,7.139],["MABC26","NO.2 MATTE ANTIQUE BRASS ZIPPER A/L C/E",4.0,39.391,2.552],["MABC29","NO.2 MATTE ANTIQUE BRASS ZIPPER SEMI A/L C/E",4.0,22.891,2.552],["MABC36","NO.3 MATTE ANTIQUE BRASS ZIPPER C/E A/L",4.0,16.896,1.914],["MABC456","NO.45 MATTE ANTIQUE BRASS ZIPPER C/E A/L",4.0,21.483,2.013],["MABC46","NO.4 MATTE ANTIQUE BRASS ZIPPER C/E A/L",4.0,20.163,2.013],["MABC459","NO.45 MATTE ANTIQUE BRASS ZIPPER SEMI A/L C/E",4.0,21.483,2.013],["MABC499","NO.49 MATTE ANTIQUE BRASS ZIPPER SEMI A/L C/E",4.0,23.166,2.354],["MABC56","NO.5 MATTE ANTIQUE BRASS ZIPPER C/E A/L",4.0,23.496,2.244],["MABC56-X TYPE","NO.5 MATTE ANTIQUE BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,45.21,2.585],["MABC59","NO.5 MATTE ANTIQUE BRASS ZIPPER SEMI A/L C/E",4.0,29.315,2.794],["MABC76","NO.7 MATTE ANTIQUE BRASS ZIPPER C/E A/L",4.0,46.024,3.883],["MABC76-X TYPE","NO.7 MATTE ANTIQUE BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,63.085,4.499],["MABC76-O TYPE","NO.7 MATTE ANTIQUE BRASS ZIPPER WITH BOTH ENDS BOTTOM STOP SLIDER HEAD TO HEAD A/L",4.0,63.085,4.499],["MABC86","NO.8 MATTE ANTIQUE BRASS ZIPPER C/E A/L",4.0,58.476,4.301],["MABC86-X TYPE","NO.8 MATTE ANTIQUE BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,77.099,5.236],["MABC106","NO.10 MATTE ANTIQUE BRASS ZIPPER C/E A/L",4.0,73.964,5.038],["MABC106-X TYPE","NO.10 MATTE ANTIQUE BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,92.576,7.139],["MABO36","NO.3 MATTE ANTIQUE BRASS ZIPPER SEP A/L",8.0,38.632,1.914],["MABO459","NO.45 MATTE ANTIQUE BRASS ZIPPER SEP SEMI A/L",8.0,47.993,2.013],["MABO46","NO.4 MATTE ANTIQUE BRASS ZIPPER SEP A/L",8.0,35.882,2.013],["MABO499","NO.49 MATTE ANTIQUE BRASS ZIPPER SEP SEMI A/L",8.0,61.886,2.354],["MABO56","NO.5 MATTE ANTIQUE BRASS ZIPPER SEP A/L",8.0,42.889,2.244],["MABO59","NO.5 MATTE ANTIQUE BRASS ZIPPER SEP SEMI A/L",8.0,66.506,2.794],["MABO76","NO.7 MATTE ANTIQUE BRASS ZIPPER SEP A/L",12.0,94.303,3.883],["MABO86","NO.8 MATTE ANTIQUE BRASS ZIPPER SEP A/L",12.0,115.214,4.301],["MABO106","NO.10 MATTE ANTIQUE BRASS ZIPPER SEP A/L",12.0,153.186,5.038],["MABM36","NO.3 MATTE ANTIQUE BRASS ZIPPER SEP WITH TWO WAY SLIDER",12.0,69.641,2.233],["MABM56","NO.5 MATTE ANTIQUE BRASS ZIPPER SEP WITH TWO WAY SLIDER",12.0,77.374,2.59],["MABM76","NO.7 MATTE ANTIQUE BRASS ZIPPER SEP WITH TWO WAY SLIDER",12.0,120.153,4.499],["MABM86","NO.8 MATTE ANTIQUE BRASS ZIPPER SEP WITH TWO WAY SLIDER",12.0,133.441,5.236],["MABM106","NO.10 MATTE ANTIQUE BRASS ZIPPER SEP WITH TWO WAY SLIDER",12.0,200.09,7.139],["DABC26","NO.2 DEEP ANTIQUE BRASS ZIPPER A/L C/E",4.0,39.391,2.552],["DABC29","NO.2 DEEP ANTIQUE BRASS ZIPPER SEMI A/L C/E",4.0,22.891,2.552],["DABC36","NO.3 DEEP ANTIQUE BRASS ZIPPER C/E A/L",4.0,16.896,1.914],["DABC456","NO.45 DEEP ANTIQUE BRASS ZIPPER C/E A/L",4.0,21.483,2.013],["DABC459","NO.45 DEEP ANTIQUE BRASS ZIPPER SEMI A/L C/E",4.0,21.483,2.013],["DABC499","NO.49 DEEP ANTIQUE BRASS ZIPPER SEMI A/L C/E",4.0,23.166,2.354],["DABC46","NO.4 DEEP ANTIQUE BRASS ZIPPER C/E A/L",4.0,20.163,2.013],["DABC56","NO.5 DEEP ANTIQUE BRASS ZIPPER C/E A/L",4.0,23.496,2.244],["DABC56-X TYPE","NO.5 DEEP ANTIQUE BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,45.21,2.585],["DABC56-O TYPE","NO.5 DEEP ANTIQUE BRASS ZIPPER WITH BOTH ENDS BOTTOM STOP SLIDER HEAD TO HEAD A/L",4.0,45.21,2.585],["DABC59","NO.5 DEEP ANTIQUE BRASS ZIPPER SEMI A/L C/E",4.0,29.315,2.794],["DABC76","NO.7 DEEP ANTIQUE BRASS ZIPPER C/E A/L",4.0,46.024,3.883],["DABC86","NO.8 DEEP ANTIQUE BRASS ZIPPER C/E A/L",4.0,58.476,4.301],["DABC106","NO.10 DEEP ANTIQUE BRASS ZIPPER C/E A/L",4.0,73.964,5.038],["DABO36","NO.3 DEEP ANTIQUE BRASS ZIPPER SEP A/L",8.0,38.632,1.914],["DABO459","NO.45 DEEP ANTIQUE BRASS ZIPPER SEP SEMI A/L",8.0,40.227,2.013],["DABO46","NO.4 DEEP ANTIQUE BRASS ZIPPER SEP A/L",8.0,35.882,2.013],["DABO499","NO.49 DEEP ANTIQUE BRASS ZIPPER SEP SEMI A/L",8.0,61.886,2.354],["DABO56","NO.5 DEEP ANTIQUE BRASS ZIPPER SEP A/L",8.0,42.889,2.244],["DABO59","NO.5 DEEP ANTIQUE BRASS ZIPPER SEP SEMI A/L",8.0,66.506,2.794],["DABO76","NO.7 DEEP ANTIQUE BRASS ZIPPER SEP A/L",12.0,94.303,3.883],["DABO86","NO.8 DEEP ANTIQUE BRASS ZIPPER SEP A/L",12.0,115.214,4.301],["DABO106","NO.10 DEEP ANTIQUE BRASS ZIPPER SEP A/L",12.0,153.186,5.038],["DABM36","NO.3 DEEP ANTIQUE BRASS ZIPPER SEP WITH TWO WAY SLIDER",12.0,69.641,2.233],["DABM56","NO.5 DEEP ANTIQUE BRASS ZIPPER SEP WITH TWO WAY SLIDER",12.0,77.374,2.59],["DABM76","NO.7 DEEP ANTIQUE BRASS ZIPPER SEP WITH TWO WAY SLIDER",12.0,120.153,4.499],["DABM86","NO.8 DEEP ANTIQUE BRASS ZIPPER SEP WITH TWO WAY SLIDER",12.0,133.441,5.236],["DABM106","NO.10 DEEP ANTIQUE BRASS ZIPPER SEP WITH TWO WAY SLIDER",12.0,200.09,7.139],["BABC26","NO.2 OXIDIZED ZIPPER A/L C/E",4.0,43.945,3.069],["BABC29","NO.2 OXIDIZED ZIPPER SEMI A/L C/E",4.0,27.445,3.069],["BABC36","NO.3 OXIDIZED ZIPPER C/E A/L",4.0,19.371,2.156],["BABC456","NO.45 OXIDIZED ZIPPER C/E A/L",4.0,24.453,2.156],["BABC459","NO.45 OXIDIZED ZIPPER SEMI A/L C/E",4.0,24.453,2.156],["BABC46","NO.4 OXIDIZED ZIPPER C/E A/L",4.0,25.355,2.552],["BABC499","NO.49 OXIDIZED ZIPPER SEMI A/L C/E",4.0,34.034,2.728],["BABC56","NO.5 OXIDIZED ZIPPER C/E A/L",4.0,29.26,2.926],["BABC59","NO.5 OXIDIZED ZIPPER C/E SEMI A/L",4.0,35.618,3.036],["BABC76","NO.7 OXIDIZED ZIPPER C/E A/L",4.0,53.515,4.334],["BABC86","NO.8 OXIDIZED ZIPPER C/E A/L",4.0,70.136,5.17],["BABC86- O TYPE","NO.8 OXIDIZED ZIPPER WITH BOTH ENDS BOTTOM STOP SLIDER HEAD TO HEAD A/L",4.0,88.759,6.105],["BABC106","NO.10 OXIDIZED ZIPPER C/E A/L",4.0,88.814,6.05],["BABO36","NO.3 OXIDIZED ZIPPER SEP A/L",8.0,41.58,2.156],["BABO459","NO.45 OXIDIZED ZIPPER SEP SEMI A/L",8.0,52.635,2.156],["BABO46","NO.4 OXIDIZED ZIPPER SEP A/L",8.0,50.281,2.552],["BABO499","NO.49 OXIDIZED ZIPPER SEP SEMI A/L",8.0,64.086,2.728],["BABO56","NO.5 OXIDIZED ZIPPER SEP A/L",8.0,51.04,2.926],["BABO59","NO.5 OXIDIZED ZIPPER SEP SEMI A/L",8.0,65.065,3.036],["BABO76","NO.7 OXIDIZED ZIPPER SEP A/L",12.0,120.835,4.334],["BABO86","NO.8 OXIDIZED ZIPPER SEP A/L",12.0,125.73,5.17],["BABO106","NO.10 OXIDIZED ZIPPER SEP A/L",12.0,183.744,6.05],["BABM36","NO.3 OXIDIZED ZIPPER SEP WITH TWO WAY SLIDER",12.0,81.95,2.607],["BABM56","NO.5 OXIDIZED ZIPPER SEP WITH TWO WAY SLIDER",12.0,91.058,2.904],["BABM76","NO.7 OXIDIZED ZIPPER SEP WITH TWO WAY SLIDER",12.0,143.231,4.796],["BABM86","NO.8 OXIDIZED ZIPPER SEP WITH TWO WAY SLIDER",12.0,153.945,6.105],["BABM106","NO.10 OXIDIZED ZIPPER SEP WITH TWO WAY SLIDER",12.0,218.218,6.974],["GBC456","NO.45 GOLDEN BRASS ZIPPER AUTO-LOCK C/E",4.0,19.03,1.859],["GBC459","NO.45 GOLDEN BRASS ZIPPER SEMI AUTO-LOCK C/E",4.0,19.03,1.859],["GBC499","NO.49 GOLDEN BRASS ZIPPER SEMI AUTO-LOCK C/E",4.0,20.779,2.156],["GBC59","NO.59 GOLDEN BRASS ZIPPER SEMI AUTO-LOCK C/E",4.0,24.376,2.453],["GBO459","NO.45 GOLDEN BRASS SEP SEMI AUTO-LOCK",8.0,43.714,1.859],["GBO59","NO.5 GOLDEN BRASS SEP SEMI AUTO-LOCK",8.0,54.516,2.453],["GBC36","NO.3 GOLDEN BRASS ZIPPER AUTO-LOCK C/E",4.0,19.03,1.859],["GBO36","NO.3 GOLDEN BRASS SEP AUTO-LOCK",8.0,45.188,1.859],["GBM36","NO.3 GOLDEN BRASS ZIPPER SEP WITH 2 WAY AUTO-LOCK",12.0,73.48,2.024],["GBC56","NO.5 GOLDEN BRASS ZIPPER AUTO-LOCK C/E",4.0,30.426,2.453],["GBO56","NO.5 GOLDEN BRASS SEP AUTO-LOCK",8.0,49.39,2.453],["GBM56","NO.5 GOLDEN BRASS ZIPPER SEP WITH 2 WAY AUTO-LOCK",12.0,86.075,2.464],["GBC86","NO.8 GOLDEN BRASS ZIPPER AUTO-LOCK C/E",4.0,70.136,5.181],["GBO86","NO.8 GOLDEN BRASS SEP AUTO-LOCK",12.0,125.73,5.181],["GBM86","NO.8 GOLDEN BRASS ZIPPER SEP WITH 2 WAY AUTO-LOCK",12.0,153.945,6.105],["BC26","NO.2 BRASS CLOSED END AUTOLOCK",4.0,35.882,1.892],["BC29","NO.2 BRASS CLOSED END SEMI AUTOLOCK",4.0,19.382,1.892],["BC36","NO.3 BRASS ZIPPER C/E A/L",4.0,14.817,1.518],["BC456","NO.45 BRASS ZIPPER C/E A/L",4.0,18.073,1.76],["BC456-X TYPE","NO.45 BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L C/E",4.0,30.217,1.86],["BC459","NO.45 BRASS ZIPPER SEMI AUTO-LOCK C/E",4.0,18.073,1.76],["BC46","NO.4 BRASS ZIPPER C/E A/L",4.0,18.568,1.87],["BC499","NO.49 BRASS ZIPPER SEMI AUTO-LOCK C/E",4.0,19.756,2.068],["BC56","NO.5 BRASS ZIPPER C/E A/L",4.0,20.779,1.947],["BC56-X TYPE","NO.5 BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L C/E",4.0,37.389,2.112],["BC59","NO.5 BRASS ZIPPER SEMI AUTO-LOCK C/E",4.0,23.166,2.321],["BC76","NO.7 BRASS ZIPPER C/E A/L",4.0,38.269,3.091],["BC76-X TYPE","NO.7 BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,55.33,3.718],["BC86","NO.8 BRASS ZIPPER C/E A/L",4.0,48.851,3.586],["BC86-X TYPE","NO.8 BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,67.474,4.521],["BC106","NO.10 BRASS ZIPPER C/E A/L",4.0,64.273,3.718],["BC106-X TYPE","NO.10 BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,82.885,5.588],["BC106-ALPHA TYPE","NO.10 BRASS ZIPPER (SLIDER BACK TO BACK) WITH ONE TOP STOP AND ONE BOTTOM STOP A/L",4.0,82.885,5.588],["BO36","NO.3 BRASS ZIPPER SEP A/L",8.0,35.904,1.518],["BO459","NO.45 BRASS ZIPPER SEP SEMI AUTO-LOCK",8.0,40.612,1.76],["BO46","NO.4 BRASS ZIPPER SEP A/L",8.0,31.779,1.87],["BO499","NO.49 BRASS ZIPPER SEP SEMI AUTO-LOCK",8.0,48.059,2.068],["BO56","NO.5 BRASS ZIPPER SEP A/L",8.0,36.916,1.947],["BO59","NO.5 BRASS ZIPPER SEP SEMI AUTO-LOCK",8.0,51.447,2.321],["BO76","NO.7 BRASS ZIPPER SEP A/L",12.0,83.49,3.091],["BO86","NO.8 BRASS ZIPPER SEP A/L",12.0,92.609,3.586],["BO106","NO.10 BRASS ZIPPER SEP A/L",12.0,124.366,3.718],["BM36","NO.3 BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,67.353,1.859],["BM56","NO.5 BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,74.844,2.068],["BM76","NO.7 BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,101.167,3.718],["BM86","NO.8 BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,112.409,4.521],["BM106","NO.10 BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,149.644,5.588],["LCBC26","NO.2 LIGHT COPPER BRASS ZIPPER AUTO-LOCK C/E",4.0,43.956,3.069],["LCBC29","NO.2 LIGHT COPPER BRASS ZIPPER SEMI AUTO-LOCK C/E",4.0,27.445,3.069],["LCBC36","NO.3 LIGHT COPPER BRASS ZIPPER C/E A/L",4.0,19.371,2.156],["LCBC456","NO.45 LIGHT COPPER BRASS ZIPPER C/E A/L",4.0,28.578,2.695],["LCBC459","NO.45 LIGHT COPPER BRASS ZIPPER SEMI AUTO-LOCK C/E",4.0,28.578,2.695],["LCBC46","NO.4 LIGHT COPPER BRASS ZIPPER C/E A/L",4.0,23.353,2.42],["LCBC499","NO.49 LIGHT COPPER BRASS ZIPPER SEMI AUTO-LOCK C/E",4.0,30.338,3.025],["LCBC56","NO.5 LIGHT COPPER BRASS ZIPPER C/E A/L",4.0,26.598,2.64],["LCBC59","NO.5 LIGHT COPPER BRASS ZIPPER SEMI AUTO-LOCK C/E",4.0,37.158,3.168],["LCBC76","NO.7 LIGHT COPPER BRASS ZIPPER C/E A/L",4.0,52.591,4.18],["LCBC86","NO.8 LIGHT COPPER BRASS ZIPPER C/E A/L",4.0,70.136,5.181],["LCBC106","NO.10 LIGHT COPPER BRASS ZIPPER C/E A/L",4.0,88.77,6.05],["LCBO36","NO.3 LIGHT COPPER BRASS ZIPPER SEP A/L",8.0,39.292,2.156],["LCBO459","NO.45 LIGHT COPPER BRASS ZIPPER SEP SEMI AUTO-LOCK",8.0,52.778,2.101],["LCBO499","NO.49 LIGHT COPPER BRASS ZIPPER SEP SEMI AUTO-LOCK",8.0,62.931,3.025],["LCBO56","NO.5 LIGHT COPPER BRASS ZIPPER SEP A/L",8.0,49.28,2.64],["LCBO59","NO.5 LIGHT COPPER BRASS ZIPPER SEP SEMI AUTO-LOCK",8.0,69.861,3.168],["LCBO76","NO.7 LIGHT COPPER BRASS ZIPPER SEP A/L",12.0,113.19,4.18],["LCBO86","NO.8 LIGHT COPPER BRASS ZIPPER SEP A/L",12.0,125.73,5.17],["LCBO106","NO.10 LIGHT COPPER BRASS ZIPPER SEP A/L",12.0,183.744,6.05],["LCBM36","NO.3 LIGHT COPPER BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,94.237,3.069],["LCBM56","NO.5 LIGHT COPPER BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,104.709,3.41],["LCBM76","NO.7 LIGHT COPPER BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,137.775,4.796],["LCBM86","NO.8 LIGHT COPPER BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,153.945,6.105],["LCBM106","NO.10 LIGHT COPPER BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,218.218,6.974],["ACBC26","NO.2 ANTIQUE COPPER BRASS ZIPPER A/L C/E",4.0,43.945,3.069],["ACBC29","NO.2 ANTIQUE COPPER BRASS ZIPPER SEMI A/L C/E",4.0,27.445,3.069],["ACBC36","NO.3 ANTIQUE COPPER BRASS ZIPPER C/E A/L",4.0,19.371,2.156],["ACBC456","NO.45 ANTIQUE COPPER BRASS ZIPPER C/E A/L",4.0,28.578,2.695],["ACBC459","NO.45 ANTIQUE COPPER BRASS ZIPPER SEMI A/L C/E",4.0,28.578,2.695],["ACBC46","NO.4 ANTIQUE COPPER BRASS ZIPPER C/E A/L",4.0,23.353,2.42],["ACBC499","NO.49 ANTIQUE COPPER BRASS ZIPPER SEMI AUTO-LOCK C/E",4.0,30.338,3.025],["ACBC56","NO.5 ANTIQUE COPPER BRASS ZIPPER C/E A/L",4.0,26.598,2.64],["ACBC56-X TYPE","NO.5 ANTIQUE COPPER BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,46.563,3.41],["ACBC59","NO.5 ANTIQUE COPPER BRASS ZIPPER SEMI AUTO-LOCK C/E",4.0,35.618,3.036],["ACBC76","NO.7 ANTIQUE COPPER BRASS ZIPPER C/E A/L",4.0,52.591,4.18],["ACBC76-X TYPE","NO.7 ANTIQUE COPPER BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,69.652,4.796],["ACBC86","NO.8 ANTIQUE COPPER BRASS ZIPPER C/E A/L",4.0,70.136,5.181],["ACBC106","NO.10 ANTIQUE COPPER BRASS ZIPPER C/E A/L",4.0,88.77,6.05],["ACBC106-X TYPE","NO.10 ANTIQUE COPPER BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,116.743,6.974],["ACBO36","NO.3 ANTIQUE COPPER BRASS ZIPPER SEP A/L",8.0,39.292,2.156],["ACBO459","NO.45 ANTIQUE COPPER BRASS ZIPPER SEP SEMI AUTO-LOCK",8.0,52.778,2.101],["ACBO46","NO.4 ANTIQUE COPPER BRASS ZIPPER SEP A/L",8.0,46.805,2.398],["ACBO499","NO.49 ANTIQUE COPPER BRASS ZIPPER SEP SEMI AUTO-LOCK",8.0,62.931,3.025],["ACBO56","NO.5 ANTIQUE COPPER BRASS ZIPPER SEP A/L",8.0,49.28,2.64],["ACBO59","NO.5 ANTIQUE COPPER BRASS ZIPPER SEP SEMI AUTO-LOCK",8.0,69.861,3.168],["ACBO76","NO.7 ANTIQUE COPPER BRASS ZIPPER SEP A/L",12.0,113.19,4.18],["ACBO86","NO.8 ANTIQUE COPPER BRASS ZIPPER SEP A/L",12.0,125.73,5.17],["ACBO106","NO.10 ANTIQUE COPPER BRASS ZIPPER SEP A/L",12.0,183.744,6.05],["ACBM36","NO.3 ANTIQUE COPPER BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,94.237,3.069],["ACBM56","NO.5 ANTIQUE COPPER BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,104.709,3.41],["ACBM76","NO.7 ANTIQUE COPPER BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,137.775,4.796],["ACBM86","NO.8 ANTIQUE COPPER BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,153.945,6.105],["ACBM106","NO.10 ANTIQUE COPPER BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,218.218,6.974],["MACBC26","NO.2 MATTE ANTIQUE COPPER BRASS ZIPPER A/L C/E",4.0,44.3845,3.0997],["MACBC29","NO.2 MATTE ANTIQUE COPPER BRASS ZIPPER SEMI A/L C/E",4.0,27.7194,3.0997],["MACBC36","NO.3 MATTE ANTIQUE COPPER BRASS ZIPPER C/E A/L",4.0,19.5647,2.1776],["MACBC456","NO.45 MATTE ANTIQUE COPPER BRASS ZIPPER C/E A/L",4.0,28.8638,2.722],["MACBC459","NO.45 MATTE ANTIQUE COPPER BRASS ZIPPER SEMI A/L C/E",4.0,28.8638,2.722],["MACBC46","NO.4 MATTE ANTIQUE COPPER BRASS ZIPPER C/E A/L",4.0,23.5865,2.4442],["MACBC499","NO.49 MATTE ANTIQUE COPPER BRASS ZIPPER SEMI AUTO-LOCK C/E",4.0,30.6414,3.0553],["MACBC56","NO.5 MATTE ANTIQUE COPPER BRASS ZIPPER C/E A/L",4.0,26.864,2.6664],["MACBC56-X TYPE","NO.5 MATTE ANTIQUE COPPER BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,47.0286,3.4441],["MACBC59","NO.5 MATTE ANTIQUE COPPER BRASS ZIPPER SEMI AUTO-LOCK C/E",4.0,35.9742,3.0664],["MACBC76","NO.7 MATTE ANTIQUE COPPER BRASS ZIPPER C/E A/L",4.0,53.1169,4.2218],["MACBC76-X TYPE","NO.7 MATTE ANTIQUE COPPER BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,70.3485,4.844],["MACBC86","NO.8 MATTE ANTIQUE COPPER BRASS ZIPPER C/E A/L",4.0,70.8374,5.2328],["MACBC106","NO.10 MATTE ANTIQUE COPPER BRASS ZIPPER C/E A/L",4.0,89.6577,6.1105],["MACBC106-X TYPE","NO.10 MATTE ANTIQUE COPPER BRASS ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,117.9104,7.0437],["MACBO36","NO.3 MATTE ANTIQUE COPPER BRASS ZIPPER SEP A/L",8.0,39.6849,2.1776],["MACBO459","NO.45 MATTE ANTIQUE COPPER BRASS ZIPPER SEP SEMI AUTO-LOCK",8.0,53.3058,2.122],["MACBO46","NO.4 MATTE ANTIQUE COPPER BRASS ZIPPER SEP A/L",8.0,47.273,2.422],["MACBO499","NO.49 MATTE ANTIQUE COPPER BRASS ZIPPER SEP SEMI AUTO-LOCK",8.0,63.5603,3.0553],["MACBO56","NO.5 MATTE ANTIQUE COPPER BRASS ZIPPER SEP A/L",8.0,49.7728,2.6664],["MACBO59","NO.5 MATTE ANTIQUE COPPER BRASS ZIPPER SEP SEMI AUTO-LOCK",8.0,70.5596,3.1997],["MACBO76","NO.7 MATTE ANTIQUE COPPER BRASS ZIPPER SEP A/L",12.0,114.3219,4.2218],["MACBO86","NO.8 MATTE ANTIQUE COPPER BRASS ZIPPER SEP A/L",12.0,126.9873,5.2217],["MACBO106","NO.10 MATTE ANTIQUE COPPER BRASS ZIPPER SEP A/L",12.0,185.5814,6.1105],["MACBM36","NO.3 MATTE ANTIQUE COPPER BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,95.1794,3.0997],["MACBM56","NO.5 MATTE ANTIQUE COPPER BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,105.7561,3.4441],["MACBM76","NO.7 MATTE ANTIQUE COPPER BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,139.1527,4.844],["MACBM86","NO.8 MATTE ANTIQUE COPPER BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,155.4845,6.1661],["MACBM106","NO.10 MATTE ANTIQUE COPPER BRASS ZIPPER SEP WITH 2 WAY SLIDER",12.0,220.4002,7.0437],["PGC26","NO.2 Pale gold ZIPPER (NICKEL FREE) AUTO-LOCK C/E",4.0,46.45,2.79],["PGC29","NO.2 Pale gold ZIPPER (NICKEL FREE) SEMI AUTO-LOCK C/E",4.0,31.45,2.79],["PGC36","NO.3 Pale gold ZIPPER (NICKEL FREE) C/E A/L",4.0,25.7,1.83],["PGC36-O TYPE","NO.3 Pale gold ZIPPER (NICKEL FREE) WITH BOTH ENDS BOTTOM STOP SLIDER HEAD TO HEAD A/L",4.0,40.66,2.48],["PGC459","NO.45 Pale gold ZIPPER (NICKEL FREE) SEMI AUTO-LOCK C/E",4.0,28.73,2.23],["PGC46","NO.4 Pale gold ZIPPER (NICKEL FREE) C/E A/L",4.0,29.55,2.48],["PGC499","NO.49 Pale gold ZIPPER (NICKEL FREE) SEMI AUTO-LOCK C/E",4.0,37.44,2.48],["PGC56","NO.5 Pale gold ZIPPER (NICKEL FREE) C/E A/L",4.0,33.1,2.66],["PGC56- X TYPE","NO.5 Pale gold ZIPPER (NICKEL FREE) WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,55.33,3.1],["PGC59","NO.5 Pale gold ZIPPER (NICKEL FREE) SEMI AUTO-LOCK C/E",4.0,38.88,2.76],["PGC76","NO.7 Pale gold ZIPPER (NICKEL FREE) C/E A/L",4.0,54.31,3.8],["PGC86","NO.8 Pale gold ZIPPER (NICKEL FREE) C/E A/L",4.0,70.26,4.7],["PGC106","NO.10 Pale gold ZIPPER (NICKEL FREE) C/E A/L",4.0,87.2,5.5],["PGC106-X TYPE","NO. 10 Pale gold ZIPPER (NICKEL FREE) WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,119.13,6.34],["PGO36","NO.3 Pale gold ZIPPER (NICKEL FREE) SEP A/L",8.0,49.14,1.83],["PGO459","NO.45 Pale gold ZIPPER (NICKEL FREE) SEP SEMI A/L",8.0,54.35,1.95],["PGO46","NO.4 Pale gold ZIPPER (NICKEL FREE) SEP A/L",8.0,54.28,2.48],["PGO499","NO.49 Pale gold ZIPPER (NICKEL FREE) SEP SEMI A/L",8.0,62.78,2.48],["PGO56","NO.5 Pale gold ZIPPER (NICKEL FREE) SEP A/L",8.0,55.48,2.66],["PGO59","NO.5 Pale gold ZIPPER (NICKEL FREE) SEP SEMI A/L",8.0,65.65,2.76],["PGO76","NO.7 Pale gold ZIPPER (NICKEL FREE) SEP A/L",12.0,109.4,3.8],["PGO86","NO.8 Pale gold ZIPPER (NICKEL FREE) SEP A/L",12.0,120.8,4.7],["PGO106","NO.10 Pale gold ZIPPER (NICKEL FREE) SEP A/L",12.0,147.15,5.5],["PGM36","NO.3 Pale gold ZIPPER (NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,98.67,2.79],["PGM56","NO.5 Pale gold ZIPPER (NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,108.19,3.1],["PGM76","NO.7 Pale gold ZIPPER (NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,138.32,4.36],["PGM86","NO.8 Pale gold ZIPPER (NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,152.95,5.55],["PGM106","NO.10 Pale gold ZIPPER (NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,211.38,6.34],["LPGC26","NO.2 LIGHT PALE GOLD ZIPPER (NICKEL FREE) AUTO-LOCK C/E",4.0,51.095,3.069],["LPGC29","NO.2 LIGHT PALE GOLD ZIPPER (NICKEL FREE) SEMI AUTO-LOCK C/E",4.0,34.595,3.069],["LPGC36","NO.3 LIGHT PALE GOLD ZIPPER (NICKEL FREE) C/E A/L",4.0,28.27,2.013],["LPGC36-O TYPE","NO.3 LIGHT PALE GOLD ZIPPER (NICKEL FREE) WITH BOTH ENDS BOTTOM STOP SLIDER HEAD TO HEAD A/L",4.0,44.726,2.728],["LPGC459","NO.45 LIGHT PALE GOLD ZIPPER (NICKEL FREE) SEMI AUTO-LOCK C/E",4.0,31.603,2.453],["LPGC46","NO.4 LIGHT PALE GOLD ZIPPER (NICKEL FREE) C/E A/L",4.0,32.505,2.728],["LPGC499","NO.49 LIGHT PALE GOLD ZIPPER (NICKEL FREE) SEMI AUTO-LOCK C/E",4.0,41.184,2.728],["LPGC56","NO.5 LIGHT PALE GOLD ZIPPER (NICKEL FREE) C/E A/L",4.0,36.41,2.926],["LPGC56- X TYPE","NO.5 LIGHT PALE GOLD ZIPPER (NICKEL FREE) WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,60.863,3.41],["LPGC59","NO.5 LIGHT PALE GOLD ZIPPER (NICKEL FREE) SEMI AUTO-LOCK C/E",4.0,42.768,3.036],["LPGC76","NO.7 LIGHT PALE GOLD ZIPPER (NICKEL FREE) C/E A/L",4.0,59.741,4.18],["LPGC86","NO.8 LIGHT PALE GOLD ZIPPER (NICKEL FREE) C/E A/L",4.0,77.286,5.17],["LPGC106","NO.10 LIGHT PALE GOLD ZIPPER (NICKEL FREE) C/E A/L",4.0,95.92,6.05],["LPGC106-X TYPE","NO.10 LIGHT PALE GOLD ZIPPER (NICKEL FREE) WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,131.043,6.974],["LPGO36","NO.3 LIGHT PALE GOLD ZIPPER (NICKEL FREE) SEP A/L",8.0,54.054,2.013],["LPGO459","NO.45 LIGHT PALE GOLD ZIPPER (NICKEL FREE) SEP SEMI A/L",8.0,59.785,2.145],["LPGO46","NO.4 LIGHT PALE GOLD ZIPPER (NICKEL FREE) SEP A/L",8.0,59.708,2.728],["LPGO499","NO.49 LIGHT PALE GOLD ZIPPER (NICKEL FREE) SEP SEMI A/L",8.0,69.058,2.728],["LPGO56","NO.5 LIGHT PALE GOLD ZIPPER (NICKEL FREE) SEP A/L",8.0,61.028,2.926],["LPGO59","NO.5 LIGHT PALE GOLD ZIPPER (NICKEL FREE) SEP SEMI A/L",8.0,72.215,3.036],["LPGO76","NO.7 LIGHT PALE GOLD ZIPPER (NICKEL FREE) SEP A/L",12.0,120.34,4.18],["LPGO86","NO.8 LIGHT PALE GOLD ZIPPER (NICKEL FREE) SEP A/L",12.0,132.88,5.17],["LPGO106","NO.10 LIGHT PALE GOLD ZIPPER (NICKEL FREE) SEP A/L",12.0,161.865,6.05],["LPGM36","NO.3 LIGHT PALE GOLD ZIPPER (NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,108.537,3.069],["LPGM56","NO.5 LIGHT PALE GOLD ZIPPER (NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,119.009,3.41],["LPGM76","NO.7 LIGHT PALE GOLD ZIPPER (NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,152.152,4.796],["LPGM86","NO.8 LIGHT PALE GOLD ZIPPER (NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,168.245,6.105],["LPGM106","NO.10 LIGHT PALE GOLD ZIPPER (NICKEL FREE) SEP WITH 2 WAY SLIDER",12.0,232.518,6.974],["MBABC26","NO.2 MATTE OXIDIZED ZIPPER A/L C/E",4.0,43.945,3.069],["MBABC29","NO.2 MATTE OXIDIZED ZIPPER SEMI A/L C/E",4.0,27.445,3.069],["MBABC36","NO.3 MATTE OXIDIZED ZIPPER C/E A/L",4.0,19.371,2.156],["MBABC36- O TYPE","NO.3 MATTE OXIDIZED ZIPPER WITH BOTH ENDS BOTTOM STOP SLIDER HEAD TO HEAD A/L",4.0,34.188,2.61],["MBABC456","NO.45 MATTE OXIDIZED ZIPPER C/E A/L",4.0,24.453,2.156],["MBABC459","NO.45 MATTE OXIDIZED ZIPPER SEMI A/L C/E",4.0,24.453,2.156],["MBABC46","NO.4 MATTE OXIDIZED ZIPPER C/E A/L",4.0,25.355,2.552],["MBABC499","NO.49 MATTE OXIDIZED ZIPPER SEMI A/L C/E",4.0,34.034,2.728],["MBABC56","NO.5 MATTE OXIDIZED ZIPPER C/E A/L",4.0,29.26,2.926],["MBABC59","NO.5 MATTE OXIDIZED ZIPPER C/E SEMI A/L",4.0,35.618,3.036],["MBABC76","NO.7 MATTE OXIDIZED ZIPPER C/E A/L",4.0,53.515,4.334],["MBABC86","NO.8 MATTE OXIDIZED ZIPPER C/E A/L",4.0,70.136,5.17],["MBABC86- O TYPE","NO.8 MATTE OXIDIZED ZIPPER WITH BOTH ENDS BOTTOM STOP SLIDER HEAD TO HEAD A/L",4.0,88.759,6.105],["MBABC106","NO.10 MATTE OXIDIZED ZIPPER C/E A/L",4.0,88.814,6.05],["MBABO36","NO.3 MATTE OXIDIZED ZIPPER SEP A/L",8.0,41.58,2.156],["MBABO459","NO.45 MATTE OXIDIZED ZIPPER SEP SEMI A/L",8.0,52.635,2.156],["MBABO46","NO.4 MATTE OXIDIZED ZIPPER SEP A/L",8.0,50.281,2.552],["MBABO499","NO.49 MATTE OXIDIZED ZIPPER SEP SEMI A/L",8.0,64.086,2.728],["MBABO56","NO.5 MATTE OXIDIZED ZIPPER SEP A/L",8.0,51.04,2.926],["MBABO59","NO.5 MATTE OXIDIZED ZIPPER SEP SEMI A/L",8.0,65.065,3.036],["MBABO76","NO.7 MATTE OXIDIZED ZIPPER SEP A/L",12.0,120.835,4.334],["MBABO86","NO.8 MATTE OXIDIZED ZIPPER SEP A/L",12.0,125.73,5.17],["MBABO106","NO.10 MATTE OXIDIZED ZIPPER SEP A/L",12.0,183.744,6.05],["MBABM36","NO.3 MATTE OXIDIZED ZIPPER SEP WITH TWO WAY SLIDER",12.0,81.95,2.607],["MBABM56","NO.5 MATTE OXIDIZED ZIPPER SEP WITH TWO WAY SLIDER",12.0,91.058,2.904],["MBABM76","NO.7 MATTE OXIDIZED ZIPPER SEP WITH TWO WAY SLIDER",12.0,143.231,4.796],["MBABM86","NO.8 MATTE OXIDIZED ZIPPER SEP WITH TWO WAY SLIDER",12.0,153.945,6.105],["MBABM106","NO.10 MATTE OXIDIZED ZIPPER SEP WITH TWO WAY SLIDER",12.0,218.218,6.974],["CTC36","NO.3 COPPER TIN ZIPPER C/E A/L",4.0,33.6683,4.1927],["CTC459","NO.3 COPPER TIN ZIPPER C/E S/L",4.0,38.676,4.1927],["CTC499","NO.49 COPPER TIN ZIPPER C/E S/L",4.0,45.155,4.565],["CTC56","NO.5 COPPER TIN ZIPPER C/E A/L",4.0,46.9507,4.747],["CTC86","NO.8 COPPER TIN ZIPPER C/E A/L",4.0,89.4086,9.4941],["CTC106","NO.10 COPPER TIN ZIPPER C/E A/L",4.0,125.1673,13.2825],["CTO36","NO.3 COPPER TIN ZIPPER SEP A/L",8.0,62.37,4.1927],["CTO56","NO.5 COPPER TIN ZIPPER SEP A/L",8.0,76.2185,4.747],["CTO86","NO.8 COPPER TIN ZIPPER SEP A/L",12.0,145.1835,9.4941],["CTO106","NO.10 COPPER TIN ZIPPER SEP A/L",12.0,203.2569,13.2825],["CTM36","NO.3 COPPER TIN ZIPPER SEP WITH TWO WAY SLIDER",12.0,102.1136,4.5622],["CTM56","NO.5 COPPER TIN ZIPPER SEP WITH TWO WAY SLIDER",12.0,150.0461,5.082],["CTM86","NO.8 COPPER TIN ZIPPER SEP WITH TWO WAY SLIDER",12.0,179.025,9.8752],["CTM106","NO.10 COPPER TIN ZIPPER SEP WITH TWO WAY SLIDER",12.0,250.635,13.816],["NC36","NO.3 NYLON ZIPPER C/E A/L",4.0,6.99,0.6],["NC36-X TYPE","NO.3 NYLON ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,12.33,0.6],["NC456","#4.5 NYLON ZIPPER C/E A/L",4.0,11.1,1.0],["NC456-X TYPE","#4.5 NYLON ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,23.8,1.19],["NC56","NO.5 NYLON ZIPPER C/E A/L",4.0,12.76,0.93],["NC56-X TYPE","NO.5 NYLON ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,25.45,1.03],["NC86","NO.8 NYLON ZIPPER C/E A/L",4.0,40.77,1.84],["NC86-X TYPE","NO.8 NYLON ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,49.3,1.84],["NC106","NO.10 NYLON ZIPPER C/E A/L",4.0,85.2,2.2],["NC106-X TYPE","NO.10 NYLON ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,138.0,2.2],["NO36","NO.3 NYLON ZIPPER SEP A/L",8.0,41.48,0.6],["NO456","#4.5 NYLON ZIPPER SEP A/L",8.0,27.0,1.0],["NO56","NO.5 NYLON ZIPPER SEP A/L",8.0,27.3,0.93],["NO86","NO.8 NYLON ZIPPER SEP A/L",12.0,74.0,1.84],["NOR106","NO.10 NYLON ZIPPER SEP A/L(RIGHT INSERT)",12.0,145.0,2.2],["NM36","NO.3 NYLON ZIPPER ZIPPER SEP WITH 2 WAY SLIDER",12.0,57.6,0.9],["NM56","NO.5 NYLON ZIPPER SEP WITH 2 WAY SLIDER A/L",12.0,43.78,0.93],["NM86","NO.8 NYLON ZIPPER SEP WITH 2 WAY SLIDER A/L",12.0,87.25,1.84],["NM106","NO.10 NYLON ZIPPER SEP WITH 2 WAY SLIDER A/L",12.0,170.0,2.2],["NSFC36","NO.3 NYLON ZIPPER C/E SMOOTH FACE",4.0,9.66,0.6],["NSFC36-X TYPE","NO.3 NYLON ZIPPER C/E SMOOTH FACE WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,14.87,0.6],["NSFC456","NO.45 NYLON ZIPPER C/E SMOOTH FACE",4.0,34.1,1.0],["NSFC56","NO.5 NYLON ZIPPER C/E SMOOTH FACE A/L",4.0,16.8,0.93],["NSFC56-X TYPE","NO.5 NYLON ZIPPER C/E SMOOTH FACE WITH BOTH ENDS TOP STOP A/L",4.0,28.7,0.93],["NSFC86","NO.8 NYLON ZIPPER C/E SMOOTH FACE A/L",4.0,57.08,1.84],["NSFC86-X TYPE","NO.8 NYLON ZIPPER C/E SMOOTH FACE WITH BOTH ENDS TOP STOP A/L",4.0,82.0,1.84],["NSFO36","NO.3 NYLON ZIPPER SEP SMOOTH FACE",8.0,63.5,0.55],["NSFO456","NO.4.5 NYLON ZIPPER SEP SMOOTH FACE",8.0,40.0,1.0],["NSFO56","NO.5 NYLON ZIPPER SEP SMOOTH FACE A/L",8.0,41.9,0.93],["NSFO86","NO.8 NYLON ZIPPER SEP SMOOTH FACE A/L",12.0,103.6,1.84],["NSFM36","NO.3 NYLON ZIPPER ZIPPER SEP WITH 2 WAY SLIDER SMOOTH FACE A/L",12.0,84.8,0.55],["NSFM56","NO.5 NYLON ZIPPER SEP SMOOTH FACE WITH TWO WAY SLIDER A/L",12.0,59.93,0.93],["NSFM86","NO.8 NYLON ZIPPER SEP SMOOTH FACE WITH TWO WAY SLIDER A/L",12.0,122.15,1.84],["CC26","NO.2 INVISIBLE ZIPPER A/L",4.0,17.52,1.5],["CC26-X TYPE","NO.2 INVISIBLE ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,35.4,3.0],["CC26-WT","NO.2 INVISIBLE ZIPPER WITH WOVEN TAPE A/L",4.0,17.52,1.5],["CC36","NO.3 INVISIBLE ZIPPER A/L",4.0,17.52,1.5],["CC56","NO.5 INVISIBLE ZIPPER A/L",4.0,55.35,3.23],["DC36","NO.3 DELRIN ZIPPER C/E A/L",4.0,13.28,1.05],["DC36-O TYPE","NO.3 DELRIN ZIPPER WITH BOTH ENDS BOTTOM STOP SLIDER HEAD TO HEAD A/L",4.0,19.78,1.05],["DC46","NO.4 DELRIN ZIPPER C/E A/L",4.0,16.94,1.46],["DC46-X TYPE","NO.4 DELRIN ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,30.1,1.46],["DC56","NO.5 DELRIN ZIPPER C/E A/L",4.0,16.69,1.26],["DC56-X TYPE","NO.5 DELRIN ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,28.39,1.26],["DVSC86","NO.8 DELRIN (VS TEETH)ZIPPER C/E A/L",4.0,25.55,1.9],["DC86","NO.8 DELRIN ZIPPER C/E A/L",4.0,25.55,1.9],["DC86-X TYPE","NO.8 DELRINZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,40.8,1.9],["DVSC86-X TYPE","NO.8 DELRIN (VS TEETH)ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,40.8,1.9],["DC106","NO.10 DELRIN ZIPPER C/E A/L",4.0,77.8,2.6],["DC106-X TYPE","NO.10 DELRIN ZIPPER WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,76.18,2.33],["DC156","NO.15 DELRIN ZIPPER C/E A/L",4.0,194.0,6.5],["DO36","NO.3 DELRIN ZIPPER SEP A/L",8.0,24.2,1.05],["DO46","NO.4 DELRIN ZIPPER SEP A/L",8.0,30.54,1.46],["DO56","NO.5 DELRIN ZIPPER SEP A/L",8.0,30.17,1.26],["DO86","NO.8 DELRIN ZIPPER SEP A/L",12.0,51.9,1.9],["DVSO86","NO.8 DELRIN (VS TEETH) ZIPPER SEP A/L",12.0,51.9,1.9],["DO106","NO.10 DELRIN ZIPPER SEP A/L",12.0,109.6,2.6],["DO156","NO.15 DELRIN ZIPPER SEP A/L",12.0,380.0,6.5],["DM36","NO.3 DELRIN ZIPPER SEP A/L WITH TWO WAY SLIDER",12.0,60.0,1.05],["DM56","NO.5 DELRIN ZIPPER SEP WITH TWO WAY SLIDER",12.0,43.89,1.26],["DM86","NO.8 DELRIN ZIPPER SEP WITH TWO WAY SLIDER",12.0,76.15,1.9],["DVSM86","NO.8 DELRIN (VS TEETH)ZIPPER SEP WITH TWO WAY SLIDER",12.0,76.15,1.9],["DM106","NO.10 DELRIN ZIPPER SEP WITH TWO WAY SLIDER A/L",12.0,152.0,2.6],["DM156","NO.15 DELRIN ZIPPER SEP WITH TWO WAY SLIDER A/L",12.0,152.0,2.6],["DVSC56","NO.5 DELRIN (VS TEETH) ZIPPER C/E AUTOLOCK",4.0,15.93,1.32],["DVSO56","NO.5 DELRIN (VS TEETH) ZIPPER SEP AUTOLOCK",8.0,28.28,1.32],["DVSM56","NO.5 DELRIN (VS TEETH) ZIPEER SEP WITH TWO WAY SLIDER",12.0,46.08,1.32],["DWFC46","NO.4 DELRIN ZIPPER (WF TEETH) C/E A/L",4.0,32.5,1.8],["DWFC46- X TYPE","NO.4 DELRIN ZIPPER (WF TEETH) WITH BOTH ENDS TOP STOP SLIDER BACK TO BACK A/L",4.0,53.2,1.8],["DWFC76","NO.7 DELRIN ZIPPER (WF TEETH) C/E A/L",4.0,39.4,2.0],["DWFC96","NO.9 DELRIN ZIPPER (WF TEETH) C/E A/L",4.0,68.0,2.8],["DWFM46","NO.4 DELRIN ZIPPER (WF TEETH) SEP WITH TWO WAY SLIDER A/L",12.0,65.0,1.8],["DWFM76","NO.7 DELRIN ZIPPER (WF TEETH) SEP WITH TWO WAY SLIDER A/L",12.0,80.0,2.0],["DWFM96","NO.9 DELRIN ZIPPER (WF TEETH) SEP WITH TWO WAY SLIDER A/L",12.0,138.5,2.8],["DWFO46","NO.4 DELRIN ZIPPER (WF TEETH) SEP A/L",8.0,38.6,1.8],["DWFO76","NO.7 DELRIN ZIPPER (WF TEETH) SEP A/L",12.0,47.3,2.0],["DWFO96","NO.9 DELRIN ZIPPER (WF TEETH) SEP A/L",12.0,88.3,2.8]];
+let SCRIPT_URL = localStorage.getItem('sheetScriptUrl') || "https://script.google.com/macros/s/AKfycbwmqP4LrIM9_Z9VofluBGpMx348cbTASVRODbptMEj9r9TFy1wfs5ob4AeyM9Na3Fnn/exec";
 
-const LOGO_B64 = "iVBORw0KGgoAAAANSUhEUgAAAfQAAAD+CAAAAADpUaiEAAAGrElEQVR42u3dSZLkOAxEUdz/0t6rrm6zCpEACc7fdzmESOBJCk2RaUYIIYQQQgghhBBCCCGEEEIIISQalRP4Vd9CEuc2cTqjljyocZ3VpBqA/iB6tI7j0AV6dynboAv0aW0H/SZ0Zz2gX4auK9EFem9Ju6AL9HndB/1C9FpVoF+JrtvQBXpnkzZBF+gTCUC/FV2gP4iuq9AFel+f9kAX6DMZQAcd9KvQdRG6QO/q1BboAh100MdKgA76IegCvadVO6ALdNBBT91Bg34JeqRt16ALdGv/fMgG6AK9eYZD0G1CQO+YIegPojepb41uGTO7HN2ORBfofTO8Dd1AT/nAykHoBjrobVO7H92OQxfooIPeMMOg+uboBvpb6J51AvT4cOvRBTrooA9BF+j3odtV6P3qoO+GXh8adNBBTygTdNCPQhfoCwcc0hpL2tRBPwfdQAcd9Lw6QQd9Lro60QX6pegG+ivoBjrowx4wAH0uukCfhy7QQd8c3UB/A91AvxM95aYQ6A2LAR100EHfA91AvwU9MGzXDEEHHXTQQQcd9Nb0T9ES1UGfgZ6+oYMOOuigg/4gukA/BT24BNBvRzfQQQcd9OCAoO+CLtBBry4A9LvRDXTQO/fvoG+CLtBBBx301Dd10A9Az1tPQN8JXaCDDjrooIPeqQ76FuhtrwYddNBBB/09dIG+N/oQPdAPRjfQl6NP7wfooCe8LYC+AbpABz3pgirox6Ib6KAn7CNAX48u0EEHHfTJt2RBP3tLF+i7omtcHkcX6KCDDrrdiS7Q90QX6KCDDjrooKeog74YXaCDDjrooLfPUK+iC3TXQqa2RKCDDjrooIOepA76UnSBPgxdoINeXAbooJ+OLtD3Qhfow9AFOuigg253o+tJdO2KLtBBBz1thtGegA76OvQh7XwDXdu2RGkjgR7dhe6KbqAPQzfQb0MX6EuvRKxA3/nYVqAPQd/6ImUiuoEeOg0eizFn756MrnPRRz1ikHaRZCK6plS4Gn3gcyVZTRHozej58wQd9CPQDfS+ae6BPvJUAPRF6AJ9DbqBDvrB6AZ61yS3QF956eNmdFuJLtBBB30KuoH+HLpdhp74J4+vRbe16PnmoHfND/Q70Q3059DtRXS9jW7L0TUA3UDvaOgG6Ab6VHLQ70O3d9H1KHpO87pHF+jT0LOatym6gd7ex/XoBvpc8ovR9RB6eu96JyLQB6IP6h3oqdMmhBBCCCGEEEIIIYQQQgghhBDyXyKfAakuoL7cf3+rOGzpsVXHtBOeyYtU+tfcvMsrv752u3zAI0mOUstDt6HLia4YevgxewtU+r8fOVeSDPSuhyf60L9fOXZLb0CP/bsRf6E7oXf+P/PmVtRYYuhKRA89OuYvdC90DUfXVeiFX/U+6bYBujLQC0ts63wMXZnoSkZXEd0/9JHov77MOZBbhq7SUfjW6KEPCba3wny1+4cNoHtKCra+XukU9GADm9BtDbp7R9uBXl+zf2w6xcluiO4r0of+58ffZ6fe3dQZ6BZBL83mz7f869tm6PYcuo5Dt4vQlYBuAfSGSjdDVzZ6fIxD0BVCd5RY6Nzm6HoN3UroCpSo49HtVy+ip7+t6Jrynv4XeqDSAvrPzg1Ct6noGoRu89DVU+n16O6brjuiWzd6+a5rcXnaD12186QyeuwNzzvs5/C+S/fxvbur0lvR5Zq666pv6GbN74OgLnTfu9D34cPP4R7Y0n988fHaMehqRPffiVAZ3Zx/l+X3SmRHbemlk6avF++L7j+yKd5oc50rVTt3MLpHvQvd0tAjh7PRSh9Dd7BnoGvSlm6xSi9DL91BrC4hE93y0P1vqgpWWj1H3BXd8aPvX5X/+ZrQeXodPbDz6kf/qlS1TnnvXx+FXrqAkYKunCdnvE1wr1L3ojs3mDHo1o9ubnRfpd8P5XV27kB02xbd/KtrU6UXoau9F/noSkHXHPRo5za6tVqZunfUXnRbiF6/Qgf6oejqrfQJdL2JnrClawa6taNrF3RbiK6WLV0XoH986z50a620PrkZ6EpErx9WH46uWqXV5cl/v2YcuhLQ64DOayCha+8qXtBy3jLPRq9WWj3ua7tuHGprxDwD/eeX56Fbc6VL0YM3kePoxcsmT6A7WOLvZ6noloBucXTLRrdedNfF5sJ3m9BtCbp1oLsEXcOeie66f+891q/tbBLRbTi6eYbNQLcsdIXRvwf0n+DNQ7cJ6J6noE9Bd9+Uj5/VT0K3eVkz6oq8UykhhBBCCCGEEEIIIYQQQgghhLyXfwBhsoHcbE64TwAAAABJRU5ErkJggg==";
+let records = [];
+let targets = [];
+let charts = {};
+let editingRowIndex = null; // sheet row index being edited (null = new entry)
+let editingTargetRowIndex = null;
 
-let selectedItem = null;
-let quotation = [];
-
-/* ---------- Init ---------- */
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('q_date').value = new Date().toISOString().slice(0,10);
-  document.getElementById('q_no').value = genQuoteNo();
-});
-
-function genQuoteNo(){
-  const d = new Date();
-  const ymd = d.getFullYear().toString() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
-  const rand = Math.floor(100 + Math.random()*900);
-  return 'IFA-Q-' + ymd + '-' + rand;
-}
-
-/* ---------- Item search combobox ---------- */
-const searchInput = document.getElementById('itemSearch');
-const listEl = document.getElementById('itemList');
-let highlightIdx = -1;
-let currentMatches = [];
-
-searchInput.addEventListener('input', () => {
-  selectedItem = null;
-  updateAddItemState();
-  const q = searchInput.value.trim().toLowerCase();
-  if(!q){ listEl.classList.remove('show'); return; }
-  currentMatches = ITEMS.filter(it => it[0].toLowerCase().includes(q) || it[1].toLowerCase().includes(q)).slice(0,60);
-  highlightIdx = -1;
-  renderMatches();
-});
-
-searchInput.addEventListener('focus', () => {
-  if(searchInput.value.trim() && currentMatches.length) listEl.classList.add('show');
-});
-
-searchInput.addEventListener('keydown', (e) => {
-  if(!listEl.classList.contains('show')) return;
-  if(e.key === 'ArrowDown'){ e.preventDefault(); highlightIdx = Math.min(highlightIdx+1, currentMatches.length-1); renderMatches(); }
-  else if(e.key === 'ArrowUp'){ e.preventDefault(); highlightIdx = Math.max(highlightIdx-1, 0); renderMatches(); }
-  else if(e.key === 'Enter'){ e.preventDefault(); if(currentMatches[highlightIdx]) selectItem(currentMatches[highlightIdx]); }
-  else if(e.key === 'Escape'){ listEl.classList.remove('show'); }
-});
-
-document.addEventListener('click', (e) => {
-  if(!e.target.closest('.combo')) listEl.classList.remove('show');
-});
-
-function renderMatches(){
-  if(currentMatches.length === 0){
-    listEl.innerHTML = '<div class="combo-empty">No matching items found.</div>';
-    listEl.classList.add('show');
-    return;
-  }
-  listEl.innerHTML = currentMatches.map((it,i) => `
-    <div class="combo-item${i===highlightIdx?' hi':''}" data-idx="${i}">
-      <div class="code">${escapeHtml(it[0])}</div>
-      <div class="desc">${escapeHtml(it[1])}</div>
-    </div>`).join('');
-  listEl.classList.add('show');
-  listEl.querySelectorAll('.combo-item').forEach(el => {
-    el.addEventListener('click', () => selectItem(currentMatches[Number(el.dataset.idx)]));
+/* ---------- Navigation ---------- */
+document.querySelectorAll('.nav-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    if(btn.dataset.view==='dashboard') renderDashboard();
+    if(btn.dataset.view==='records') renderTable();
+    if(btn.dataset.view==='targets') renderTargetsTable();
   });
-}
-
-function selectItem(it){
-  selectedItem = { code: it[0], desc: it[1], baseLen: it[2], basePrice: it[3], add1: it[4] };
-  searchInput.value = it[0] + ' — ' + it[1];
-  listEl.classList.remove('show');
-  renderItemInfo();
-  updateAddItemState();
-}
-
-function renderItemInfo(){
-  const box = document.getElementById('itemInfo');
-  if(!selectedItem){
-    box.className = 'item-info placeholder';
-    box.textContent = 'No item selected yet — search and click an item above.';
-    return;
-  }
-  box.className = 'item-info';
-  box.innerHTML = `
-    <div class="stat"><div class="label">Item Code</div><div class="value">${escapeHtml(selectedItem.code)}</div></div>
-    <div class="stat"><div class="label">Base Length</div><div class="value">${selectedItem.baseLen}"</div></div>
-    <div class="stat"><div class="label">Base Length Price</div><div class="value">${fmt(selectedItem.basePrice)}</div></div>
-    <div class="stat"><div class="label">Add 1" Price</div><div class="value">${fmt(selectedItem.add1)}</div></div>
-  `;
-}
-
-function updateAddItemState(){
-  const has = !!selectedItem;
-  ['lenCm','lenIn','pullerCode','ipFinish','addCharge','discountPct'].forEach(id => {
-    document.getElementById(id).disabled = !has;
-  });
-  if(!has){
-    ['lenCm','lenIn','pullerCode','ipFinish','addCharge','discountPct'].forEach(id => {
-      document.getElementById(id).value = '';
-    });
-  }
-  refreshPricingPreview();
-}
-
-/* ---------- CM / INCH sync ---------- */
-document.getElementById('lenCm').addEventListener('input', () => {
-  const cm = parseFloat(document.getElementById('lenCm').value);
-  if(!isNaN(cm) && cm >= 0){
-    document.getElementById('lenIn').value = (cm / 2.54).toFixed(2);
-  } else {
-    document.getElementById('lenIn').value = '';
-  }
-  refreshPricingPreview();
 });
 
-document.getElementById('lenIn').addEventListener('input', () => {
-  const inch = parseFloat(document.getElementById('lenIn').value);
-  if(!isNaN(inch) && inch >= 0){
-    document.getElementById('lenCm').value = (inch * 2.54).toFixed(2);
-  } else {
-    document.getElementById('lenCm').value = '';
-  }
-  refreshPricingPreview();
-});
-
-document.getElementById('addCharge').addEventListener('input', refreshPricingPreview);
-document.getElementById('discountPct').addEventListener('input', refreshPricingPreview);
-
-/* ---------- Pricing engine ---------- */
-function billableLength(inches){
-  return Math.ceil(inches / 0.5) * 0.5;
-}
-
-function getAdjustedPrices(){
-  if(!selectedItem) return null;
-  const addCharge = parseFloat(document.getElementById('addCharge').value) || 0;
-  const discount = Math.min(100, Math.max(0, parseFloat(document.getElementById('discountPct').value) || 0));
-  let base = selectedItem.basePrice + addCharge;
-  let add1 = selectedItem.add1;
-  if(discount > 0){
-    const mult = 1 - (discount / 100);
-    base = base * mult;
-    add1 = add1 * mult;
-  }
-  return { base, add1, discount };
-}
-
-function finalRateFor(adj, inches){
-  if(!adj || isNaN(inches) || inches <= 0) return null;
-  const billed = billableLength(inches);
-  if(billed <= selectedItem.baseLen) return adj.base;
-  return adj.base + (billed - selectedItem.baseLen) * adj.add1;
-}
-
-function refreshPricingPreview(){
-  const disp = document.getElementById('unitPriceDisplay');
-  const sub = document.getElementById('pricingSub');
-  const addBtn = document.getElementById('addBtn');
-  if(!selectedItem){
-    disp.textContent = 'Select an item to see pricing';
-    disp.classList.add('dim');
-    sub.textContent = '';
-    addBtn.disabled = true;
-    return;
-  }
-  const adj = getAdjustedPrices();
-  sub.textContent = 'Base/100pcs: ' + fmt(adj.base) + '   ·   Add 1"/100pcs: ' + fmt(adj.add1) +
-    (adj.discount > 0 ? ('   ·   Discount: ' + adj.discount + '%') : '');
-  const inch = parseFloat(document.getElementById('lenIn').value);
-  const rate = finalRateFor(adj, inch);
-  if(rate === null){
-    disp.textContent = 'No length entered — will quote Base + Add 1" rates only';
-    disp.classList.add('dim');
-  } else {
-    disp.textContent = 'Final Rate: ' + fmt(rate);
-    disp.classList.remove('dim');
-  }
-  addBtn.disabled = false;
-}
-
-/* ---------- Quotation list ---------- */
-function addToQuotation(){
-  if(!selectedItem) return;
-  const adj = getAdjustedPrices();
-  const inch = parseFloat(document.getElementById('lenIn').value);
-  const hasLength = !isNaN(inch) && inch > 0;
-  const finalRate = hasLength ? finalRateFor(adj, inch) : null;
-
-  const puller = document.getElementById('pullerCode').value.trim();
-  const ipFinish = document.getElementById('ipFinish').value.trim();
-  const fullCode = [selectedItem.code, puller, ipFinish].filter(Boolean).join(' ');
-
-  quotation.push({
-    code: fullCode,
-    desc: selectedItem.desc,
-    lengthIn: hasLength ? inch : null,
-    basePrice: adj.base,
-    add1: adj.add1,
-    discount: adj.discount,
-    finalRate: finalRate
-  });
-  renderQuotation();
-  toast('Added ' + fullCode + ' to quotation', 'ok');
-
-  // reset add-item form for the next item
-  searchInput.value = '';
-  selectedItem = null;
-  document.getElementById('pullerCode').value = '';
-  document.getElementById('ipFinish').value = '';
-  document.getElementById('addCharge').value = '';
-  document.getElementById('discountPct').value = '';
-  renderItemInfo();
-  updateAddItemState();
-  searchInput.focus();
-}
-
-function removeRow(idx){
-  quotation.splice(idx, 1);
-  renderQuotation();
-}
-
-function renderQuotation(){
-  const body = document.getElementById('quoteBody');
-  const empty = document.getElementById('quoteEmpty');
-  const lineCount = document.getElementById('lineCount');
-
-  lineCount.textContent = quotation.length + (quotation.length === 1 ? ' item' : ' items');
-
-  if(quotation.length === 0){
-    body.innerHTML = '';
-    empty.style.display = 'block';
-    return;
-  }
-  empty.style.display = 'none';
-
-  body.innerHTML = quotation.map((row,i) => `
-      <tr>
-        <td>${i+1}</td>
-        <td>${escapeHtml(row.code)}</td>
-        <td>${escapeHtml(row.desc)}</td>
-        <td class="num">${row.lengthIn != null ? trimNum(row.lengthIn)+'"' : '—'}</td>
-        <td class="num">${fmt(row.basePrice)}</td>
-        <td class="num">${fmt(row.add1)}</td>
-        <td class="num">${row.finalRate != null ? fmt(row.finalRate) : '—'}</td>
-        <td><button class="row-del" onclick="removeRow(${i})">✕ Remove</button></td>
-      </tr>`).join('');
-}
-
-function clearQuotation(){
-  if(quotation.length === 0) return;
-  if(!confirm('Clear all items from this quotation?')) return;
-  quotation = [];
-  renderQuotation();
-  toast('Quotation cleared');
-}
-
-/* ---------- PDF export ---------- */
-function exportPDF(){
-  if(quotation.length === 0){ toast('Add at least one item before exporting', 'err'); return; }
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'portrait' });
-  const pageWidth = doc.internal.pageSize.getWidth();
-
-  // Letterhead
-  doc.addImage(LOGO_B64, 'PNG', 14, 12, 26, 13.2);
-  doc.setFontSize(15);
-  doc.setFont(undefined, 'bold');
-  doc.text('IDEAL FASTENER CORPORATION', 44, 19);
-  doc.setFont(undefined, 'normal');
-  doc.setTextColor(0,0,0);
-
-  doc.setFontSize(10);
-  const qNo = document.getElementById('q_no').value || '-';
-  const qDate = document.getElementById('q_date').value || '-';
-  doc.text('Quotation No: ' + qNo, pageWidth-14, 16, { align: 'right' });
-  doc.text('Date: ' + qDate, pageWidth-14, 21.5, { align: 'right' });
-
-  doc.setDrawColor(211,168,92);
-  doc.setLineWidth(0.6);
-  doc.line(14, 27, pageWidth-14, 27);
-
-  const customer = document.getElementById('q_customer').value || '-';
-  const ref = document.getElementById('q_ref').value || '';
-  const shipTerm = document.getElementById('q_shipterm').value || '-';
-  doc.setFontSize(10);
-  let metaY = 34;
-  doc.text('Customer: ' + customer, 14, metaY);
-  if(ref){ metaY += 5.5; doc.text('Attn / Ref: ' + ref, 14, metaY); }
-  metaY += 5.5;
-  doc.text('Shipping Term: ' + shipTerm, 14, metaY);
-
-  const body = quotation.map((row,i) => [
-    i+1,
-    row.code,
-    row.desc,
-    row.lengthIn != null ? (trimNum(row.lengthIn)+'"') : '-',
-    '$'+row.basePrice.toFixed(2),
-    '$'+row.add1.toFixed(2),
-    row.finalRate != null ? ('$'+row.finalRate.toFixed(2)) : '-'
-  ]);
-
-  doc.autoTable({
-    startY: metaY + 6,
-    head: [['#','Item Code','Description','Length','Base/100pcs','Add 1"/100pcs','Final Rate/100pcs']],
-    body: body,
-    styles: { fontSize: 7.8, cellPadding: 2.6 },
-    headStyles: { fillColor: [15,22,35], textColor: [255,255,255] },
-    columnStyles: {
-      0: { halign:'center', cellWidth:7 },
-      3: { halign:'right' }, 4: { halign:'right' }, 5: { halign:'right' }, 6: { halign:'right' }
-    }
-  });
-
-  doc.setFontSize(8);
-  doc.setTextColor(140,140,140);
-  doc.text('Quotation Generator — IDEAL FASTENER CORPORATION — engineered by Towhid', 14, doc.internal.pageSize.getHeight()-10);
-
-  doc.save(qNo + '.pdf');
-  toast('PDF exported', 'ok');
-}
-
-/* ---------- Helpers ---------- */
-function fmt(n){
-  return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function trimNum(n){
-  return Number(n).toFixed(2).replace(/\.?0+$/, '') || '0';
-}
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-function toast(msg, type=''){
+/* ---------- Toast ---------- */
+function toast(msg, type='ok'){
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.className = 'toast show ' + type;
-  setTimeout(() => t.className = 'toast', 2200);
+  setTimeout(()=>t.classList.remove('show'), 3000);
 }
 
-/* ---------- PWA: register service worker (enables "Install app") ---------- */
+/* ---------- Sync status ---------- */
+function setSyncStatus(state, text){
+  const dot = document.getElementById('syncDot');
+  const txt = document.getElementById('syncText');
+  dot.className = 'sync-dot' + (state==='live' ? ' live' : state==='err' ? ' err' : '');
+  txt.textContent = text;
+}
+
+/* ---------- Connection ---------- */
+function connectSheet(){
+  const url = document.getElementById('scriptUrl').value.trim();
+  if(!url){ toast('Please paste the Web App URL', 'err'); return; }
+  SCRIPT_URL = url;
+  localStorage.setItem('sheetScriptUrl', url);
+  document.getElementById('setupStatus').textContent = 'Connected. Loading data...';
+  refreshData();
+}
+function disconnectSheet(){
+  SCRIPT_URL = "";
+  localStorage.removeItem('sheetScriptUrl');
+  setSyncStatus('off','Not connected');
+  document.getElementById('setupStatus').textContent = 'Disconnected.';
+  toast('Disconnected from Google Sheet');
+}
+
+/* ---------- Data load/save ---------- */
+async function refreshData(){
+  if(!SCRIPT_URL){
+    setSyncStatus('off','Not connected');
+    records = JSON.parse(localStorage.getItem('localRecords')||'[]');
+    targets = JSON.parse(localStorage.getItem('localTargets')||'[]');
+    renderTable(); renderDashboard(); renderTargetsTable();
+    return;
+  }
+  setSyncStatus('','Syncing...');
+  try{
+    const res = await fetch(SCRIPT_URL+'?action=read');
+    const data = await res.json();
+    records = data.records || [];
+    targets = data.targets || [];
+    setSyncStatus('live','Connected · Live');
+    document.getElementById('setupStatus').textContent = 'Connected successfully. ' + records.length + ' records loaded.';
+    renderTable(); renderDashboard(); renderTargetsTable();
+  }catch(e){
+    setSyncStatus('err','Connection error');
+    toast('Could not reach Google Sheet. Check URL/deployment.', 'err');
+  }
+}
+
+async function pushRecord(rec){
+  if(!SCRIPT_URL){
+    records.push(rec);
+    localStorage.setItem('localRecords', JSON.stringify(records));
+    return true;
+  }
+  try{
+    await fetch(SCRIPT_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({action:'add', record:rec})
+    });
+    return true;
+  }catch(e){
+    toast('Sync failed — saved locally instead.', 'err');
+    records.push(rec);
+    localStorage.setItem('localRecords', JSON.stringify(records));
+    return false;
+  }
+}
+
+async function deleteRemote(rowIndex){
+  if(!SCRIPT_URL) return;
+  try{
+    await fetch(SCRIPT_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({action:'delete', rowIndex:rowIndex})
+    });
+  }catch(e){ toast('Delete sync failed', 'err'); }
+}
+
+/* ---------- Target sync functions ---------- */
+async function pushTarget(t){
+  if(!SCRIPT_URL){
+    targets.push(t);
+    localStorage.setItem('localTargets', JSON.stringify(targets));
+    return true;
+  }
+  try{
+    await fetch(SCRIPT_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({action:'addTarget', target:t})
+    });
+    return true;
+  }catch(e){
+    toast('Sync failed — saved locally instead.', 'err');
+    targets.push(t);
+    localStorage.setItem('localTargets', JSON.stringify(targets));
+    return false;
+  }
+}
+
+async function updateTargetRemote(rowIndex, t){
+  if(!SCRIPT_URL) return;
+  try{
+    await fetch(SCRIPT_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({action:'updateTarget', rowIndex:rowIndex, target:t})
+    });
+  }catch(e){ toast('Update sync failed', 'err'); }
+}
+
+async function deleteTargetRemote(rowIndex){
+  if(!SCRIPT_URL) return;
+  try{
+    await fetch(SCRIPT_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({action:'deleteTarget', rowIndex:rowIndex})
+    });
+  }catch(e){ toast('Delete sync failed', 'err'); }
+}
+
+/* ---------- Entry form ---------- */
+function clearForm(){
+  ['f_date','f_pino','f_customer','f_buyer','f_itemcode','f_style','f_value','f_sales'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f_generic').value='Nylon';
+  document.getElementById('f_factory').value='IFBD';
+  document.getElementById('f_newsales').value='No';
+  editingRowIndex = null;
+  document.getElementById('addBtn').textContent = '＋ Add Record';
+  document.getElementById('entryStatus').textContent = '';
+}
+
+async function addRecord(){
+  const rec = {
+    date: document.getElementById('f_date').value,
+    pino: document.getElementById('f_pino').value.trim(),
+    customer: document.getElementById('f_customer').value.trim(),
+    buyer: document.getElementById('f_buyer').value.trim(),
+    itemcode: document.getElementById('f_itemcode').value.trim(),
+    generic: document.getElementById('f_generic').value,
+    style: document.getElementById('f_style').value.trim(),
+    value: parseFloat(document.getElementById('f_value').value) || 0,
+    factory: document.getElementById('f_factory').value,
+    sales: document.getElementById('f_sales').value.trim(),
+    newsales: document.getElementById('f_newsales').value
+  };
+  if(!rec.date || !rec.pino || !rec.customer || !rec.value){
+    toast('Please fill at least Date, PI No, Customer and PI Value', 'err');
+    return;
+  }
+
+  if(editingRowIndex !== null){
+    // UPDATE existing record
+    document.getElementById('entryStatus').textContent = 'Updating...';
+    if(SCRIPT_URL){
+      try{
+        await fetch(SCRIPT_URL, {
+          method:'POST',
+          headers:{'Content-Type':'text/plain'},
+          body: JSON.stringify({action:'update', rowIndex: editingRowIndex, record: rec})
+        });
+      }catch(e){ toast('Update sync failed', 'err'); }
+    }else{
+      const idx = editingRowIndex - 2;
+      records[idx] = rec;
+      localStorage.setItem('localRecords', JSON.stringify(records));
+    }
+    toast('Record updated ✓');
+    document.getElementById('entryStatus').textContent = 'Updated! Refreshing data...';
+    editingRowIndex = null;
+    document.getElementById('addBtn').textContent = '＋ Add Record';
+    clearForm();
+    await refreshData();
+    document.getElementById('entryStatus').textContent = 'Ready for next entry.';
+    return;
+  }
+
+  // ADD new record
+  document.getElementById('entryStatus').textContent = 'Saving...';
+  await pushRecord(rec);
+  toast('Record added ✓');
+  document.getElementById('entryStatus').textContent = 'Saved! Refreshing data...';
+  clearForm();
+  await refreshData();
+  document.getElementById('entryStatus').textContent = 'Ready for next entry.';
+}
+
+function editRecord(localIndex){
+  const rec = getFilteredRecords()[localIndex];
+  const realIndex = records.indexOf(rec);
+  editingRowIndex = realIndex + 2; // sheet row (1-indexed + header)
+
+  document.getElementById('f_date').value = rec.date || '';
+  document.getElementById('f_pino').value = rec.pino || '';
+  document.getElementById('f_customer').value = rec.customer || '';
+  document.getElementById('f_buyer').value = rec.buyer || '';
+  document.getElementById('f_itemcode').value = rec.itemcode || '';
+  document.getElementById('f_generic').value = rec.generic || 'Nylon';
+  document.getElementById('f_style').value = rec.style || '';
+  document.getElementById('f_value').value = rec.value || '';
+  document.getElementById('f_factory').value = rec.factory || 'IFBD';
+  document.getElementById('f_sales').value = rec.sales || '';
+  document.getElementById('f_newsales').value = rec.newsales || 'No';
+
+  document.getElementById('addBtn').textContent = '✓ Save Changes';
+  document.getElementById('entryStatus').textContent = 'Editing existing record — make changes and click "Save Changes".';
+
+  // switch to entry view
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelector('.nav-btn[data-view="entry"]').classList.add('active');
+  document.getElementById('view-entry').classList.add('active');
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+/* ---------- Table ---------- */
+function genericTag(g){
+  const cls = g==='Nylon'?'tag-nylon':g==='Metal'?'tag-metal':'tag-vislon';
+  return `<span class="tag ${cls}">${g}</span>`;
+}
+function renderTable(){
+  const tbody = document.getElementById('tableBody');
+  const search = (document.getElementById('searchBox')?.value || '').toLowerCase();
+  let rows = records.filter(r=>{
+    if(!search) return true;
+    return [r.pino,r.customer,r.buyer,r.sales,r.itemcode,r.style].join(' ').toLowerCase().includes(search);
+  });
+  if(rows.length===0){
+    tbody.innerHTML = '';
+    document.getElementById('emptyState').style.display='block';
+    return;
+  }
+  document.getElementById('emptyState').style.display='none';
+  tbody.innerHTML = rows.map((r,i)=>`
+    <tr>
+      <td>${r.date||''}</td>
+      <td>${r.pino||''}</td>
+      <td>${r.customer||''}</td>
+      <td>${r.buyer||''}</td>
+      <td>${r.itemcode||''}</td>
+      <td>${genericTag(r.generic||'Nylon')}</td>
+      <td>${r.style||''}</td>
+      <td>$${Number(r.value||0).toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+      <td><span class="tag tag-factory">${r.factory||''}</span></td>
+      <td>${r.sales||''}</td>
+      <td>${r.newsales==='Yes' ? '<span class="tag tag-vislon">New</span>' : '<span class="tag tag-factory">—</span>'}</td>
+      <td>
+        <button class="row-del" style="color:var(--accent-3)" onclick="editRecord(${i})">Edit</button>
+        <button class="row-del" onclick="removeRecord(${i})">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function removeRecord(localIndex){
+  if(!confirm('Delete this record? This cannot be undone.')) return;
+  const rec = getFilteredRecords()[localIndex];
+  const realIndex = records.indexOf(rec);
+  records.splice(realIndex,1);
+  if(SCRIPT_URL){
+    await deleteRemote(realIndex+2); // +2 because sheet rows are 1-indexed + header row
+  }else{
+    localStorage.setItem('localRecords', JSON.stringify(records));
+  }
+  renderTable(); renderDashboard();
+  toast('Record deleted');
+  await refreshData();
+}
+function getFilteredRecords(){
+  const search = (document.getElementById('searchBox')?.value || '').toLowerCase();
+  return records.filter(r=>{
+    if(!search) return true;
+    return [r.pino,r.customer,r.buyer,r.sales,r.itemcode,r.style].join(' ').toLowerCase().includes(search);
+  });
+}
+
+/* ---------- Filtering for dashboard ---------- */
+function parseDate(str){
+  if(!str) return null;
+  // ISO format YYYY-MM-DD (or with time)
+  if(/^\d{4}-\d{1,2}-\d{1,2}/.test(str)){
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // DD-MM-YYYY or DD/MM/YYYY (Bangladesh-style)
+  const m = String(str).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if(m){
+    const day = parseInt(m[1],10), month = parseInt(m[2],10), year = parseInt(m[3],10);
+    const d = new Date(year, month-1, day);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // Fallback to native parser
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function getDateRange(){
+  const period = document.getElementById('periodFilter').value;
+  const now = new Date();
+  let from=null, to=null;
+  if(period==='month'){
+    from = new Date(now.getFullYear(), now.getMonth(), 1);
+    to = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  }else if(period==='quarter'){
+    const q = Math.floor(now.getMonth()/3);
+    from = new Date(now.getFullYear(), q*3, 1);
+    to = new Date(now.getFullYear(), q*3+3, 0);
+  }else if(period==='half'){
+    const h = now.getMonth()<6?0:6;
+    from = new Date(now.getFullYear(), h, 1);
+    to = new Date(now.getFullYear(), h+6, 0);
+  }else if(period==='year'){
+    from = new Date(now.getFullYear(),0,1);
+    to = new Date(now.getFullYear(),11,31);
+  }else if(period==='custom'){
+    const f = document.getElementById('dateFrom').value;
+    const t = document.getElementById('dateTo').value;
+    if(f) from = new Date(f);
+    if(t) to = new Date(t);
+  }
+  return {from, to};
+}
+
+document.getElementById('periodFilter').addEventListener('change', e=>{
+  const isCustom = e.target.value==='custom';
+  document.getElementById('customFrom').style.display = isCustom?'block':'none';
+  document.getElementById('customTo').style.display = isCustom?'block':'none';
+});
+
+function applyFilters(){ renderDashboard(); }
+
+function clearFilters(){
+  document.getElementById('periodFilter').value = 'all';
+  document.getElementById('factoryFilter').value = 'all';
+  document.getElementById('itemFilter').value = 'all';
+  document.getElementById('salesFilter').value = 'all';
+  document.getElementById('dateFrom').value = '';
+  document.getElementById('dateTo').value = '';
+  document.getElementById('customFrom').style.display = 'none';
+  document.getElementById('customTo').style.display = 'none';
+  renderDashboard();
+  toast('Filters cleared');
+}
+
+function getFilteredForDashboard(){
+  const {from,to} = getDateRange();
+  const factory = document.getElementById('factoryFilter').value;
+  const item = document.getElementById('itemFilter').value;
+  const sales = document.getElementById('salesFilter').value;
+  return records.filter(r=>{
+    const d = parseDate(r.date);
+    if(!d) return false;
+    if(from && d < from) return false;
+    if(to && d > to) return false;
+    if(factory!=='all' && r.factory!==factory) return false;
+    if(item!=='all' && r.generic!==item) return false;
+    if(sales!=='all' && r.sales!==sales) return false;
+    return true;
+  });
+}
+
+/* ---------- Populate dynamic filters ---------- */
+function populateSalesFilter(){
+  const sel = document.getElementById('salesFilter');
+  const current = sel.value;
+  const names = Array.from(new Set(records.map(r=>r.sales).filter(Boolean))).sort();
+  sel.innerHTML = '<option value="all">All Sales Persons</option>' +
+    names.map(n=>`<option value="${n}">${n}</option>`).join('');
+  if(names.includes(current)) sel.value = current;
+}
+
+/* ---------- Dashboard rendering ---------- */
+function renderDashboard(){
+  populateSalesFilter();
+  const data = getFilteredForDashboard();
+  const total = data.reduce((s,r)=>s+Number(r.value||0),0);
+  document.getElementById('kpiTotal').textContent = '$'+total.toLocaleString(undefined,{maximumFractionDigits:0});
+  document.getElementById('kpiTotalSub').textContent = data.length+' PIs in selection';
+  document.getElementById('kpiOrders').textContent = data.length;
+
+  // Top buyer
+  const byBuyer = groupSum(data,'buyer');
+  const topBuyer = topEntry(byBuyer);
+  document.getElementById('kpiTopBuyer').textContent = topBuyer[0] || '—';
+  document.getElementById('kpiTopBuyerSub').textContent = topBuyer[1]!==undefined ? '$'+topBuyer[1].toLocaleString() : 'no data';
+
+  // New sales
+  const newSalesRecords = data.filter(r=>r.newsales==='Yes');
+  const newSalesValue = newSalesRecords.reduce((s,r)=>s+Number(r.value||0),0);
+  document.getElementById('kpiNewSales').textContent = newSalesRecords.length;
+  document.getElementById('kpiNewSalesSub').textContent = newSalesRecords.length ? ('$'+newSalesValue.toLocaleString()+' in new business') : 'new customer/buyer PIs';
+
+  // Top sales person
+  const bySales = groupSum(data,'sales');
+  const topSales = topEntry(bySales);
+  document.getElementById('kpiTopSales').textContent = topSales[0] || '—';
+  document.getElementById('kpiTopSalesSub').textContent = topSales[1]!==undefined ? '$'+topSales[1].toLocaleString() : 'no data';
+
+  // Top customer
+  const byCustomer = groupSum(data,'customer');
+  const topCust = topEntry(byCustomer);
+  document.getElementById('kpiTopCustomer').textContent = topCust[0] || '—';
+  document.getElementById('kpiTopCustomerSub').textContent = topCust[1]!==undefined ? '$'+topCust[1].toLocaleString() : 'no data';
+
+  renderTrendChart(data);
+  renderItemChart(data);
+  renderFactoryChart(data);
+  renderSalesChart(data);
+  renderCustomerChart(data);
+
+  populateYearDropdowns();
+  renderTargetSection();
+  renderGrowthSection();
+}
+
+function groupSum(data, key){
+  const map = {};
+  data.forEach(r=>{
+    const k = r[key]||'Unknown';
+    map[k] = (map[k]||0) + Number(r.value||0);
+  });
+  return map;
+}
+function topEntry(map){
+  let bestK=null, bestV=-1;
+  for(const k in map){ if(map[k]>bestV){bestV=map[k]; bestK=k;} }
+  return [bestK, bestV<0?undefined:bestV];
+}
+
+const palette = ['#ff7a45','#5b8def','#3ddc97','#f7c948','#c792ea','#ff5d6c','#4dd0e1','#a3e635'];
+
+function destroy(id){ if(charts[id]){ charts[id].destroy(); } }
+
+function renderTrendChart(data){
+  destroy('trend');
+  // group by month
+  const map = {};
+  data.forEach(r=>{
+    const d = parseDate(r.date);
+    if(!d) return;
+    const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    map[key] = (map[key]||0) + Number(r.value||0);
+  });
+  const labels = Object.keys(map).sort();
+  const values = labels.map(l=>map[l]);
+  charts.trend = new Chart(document.getElementById('chartTrend'), {
+    type:'line',
+    data:{ labels, datasets:[{
+      label:'PI Value', data: values, borderColor:'#ff7a45',
+      backgroundColor:'rgba(255,122,69,0.12)', fill:true, tension:0.35, pointRadius:3, pointBackgroundColor:'#ff7a45'
+    }]},
+    options: baseOptions(true)
+  });
+}
+
+function renderItemChart(data){
+  destroy('item');
+  const map = groupSum(data,'generic');
+  charts.item = new Chart(document.getElementById('chartItem'), {
+    type:'doughnut',
+    data:{ labels:Object.keys(map), datasets:[{ data:Object.values(map), backgroundColor:palette, borderWidth:0 }]},
+    options:{ ...baseOptions(false), cutout:'62%', plugins:{...legendStyle(), } }
+  });
+}
+
+function renderFactoryChart(data){
+  destroy('factory');
+  const map = groupSum(data,'factory');
+  charts.factory = new Chart(document.getElementById('chartFactory'), {
+    type:'bar',
+    data:{ labels:Object.keys(map), datasets:[{ label:'PI Value', data:Object.values(map), backgroundColor:palette, borderRadius:6 }]},
+    options: baseOptions(true)
+  });
+}
+
+function renderSalesChart(data){
+  destroy('sales');
+  const map = groupSum(data,'sales');
+  const labels = Object.keys(map);
+  const values = Object.values(map);
+  charts.sales = new Chart(document.getElementById('chartSales'), {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'PI Value', data:values, backgroundColor:'#5b8def', borderRadius:6 }]},
+    options:{ ...baseOptions(true), indexAxis:'y' }
+  });
+}
+
+function renderCustomerChart(data){
+  destroy('customer');
+  const map = groupSum(data,'customer');
+  const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  charts.customer = new Chart(document.getElementById('chartCustomer'), {
+    type:'bar',
+    data:{ labels:sorted.map(s=>s[0]), datasets:[{ label:'PI Value', data:sorted.map(s=>s[1]), backgroundColor:'#3ddc97', borderRadius:6 }]},
+    options: baseOptions(true)
+  });
+}
+
+/* ============================================================
+   TARGET vs ACHIEVEMENT  /  ANNUAL GROWTH
+   ============================================================ */
+
+function populateYearDropdowns(){
+  const years = new Set();
+  records.forEach(r=>{
+    const d = parseDate(r.date);
+    if(d) years.add(d.getFullYear());
+  });
+  targets.forEach(t=> years.add(Number(t.year)));
+  years.add(new Date().getFullYear());
+
+  const sorted = Array.from(years).sort((a,b)=>b-a);
+
+  ['taYear','growthYear'].forEach(id=>{
+    const sel = document.getElementById(id);
+    const current = sel.value;
+    sel.innerHTML = sorted.map(y=>`<option value="${y}">${y}</option>`).join('');
+    if(sorted.includes(Number(current))) sel.value = current;
+    else sel.value = new Date().getFullYear();
+  });
+
+  const monthSel = document.getElementById('taMonth');
+  if(!monthSel.dataset.init){
+    monthSel.value = (new Date().getMonth()+1);
+    monthSel.dataset.init = '1';
+  }
+}
+
+function getAchievement(salesperson, year, month){
+  return records.reduce((sum,r)=>{
+    if(String(r.sales).trim().toLowerCase() !== String(salesperson).trim().toLowerCase()) return sum;
+    const d = parseDate(r.date);
+    if(!d) return sum;
+    if(d.getFullYear() !== Number(year)) return sum;
+    if(month && (d.getMonth()+1) !== Number(month)) return sum;
+    return sum + Number(r.value||0);
+  }, 0);
+}
+
+const MONTH_NAMES_GLOBAL = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function monthToNumber(m){
+  if(m===null || m===undefined || m==='') return null;
+  const n = Number(m);
+  if(!isNaN(n) && n>=1 && n<=12) return n;
+  const idx = MONTH_NAMES_GLOBAL.findIndex(name=>name && name.toLowerCase()===String(m).trim().toLowerCase());
+  return idx>0 ? idx : null;
+}
+
+function getTargetValue(salesperson, year, month){
+  const monthNum = monthToNumber(month);
+  const t = targets.find(t=>
+    String(t.salesperson).trim().toLowerCase() === String(salesperson).trim().toLowerCase() &&
+    Number(t.year)===Number(year) &&
+    monthToNumber(t.month)===monthNum
+  );
+  return t ? Number(t.target||0) : 0;
+}
+
+function getAllSalesPersons(){
+  const fromRecords = records.map(r=>r.sales).filter(Boolean);
+  const fromTargets = targets.map(t=>t.salesperson).filter(Boolean);
+  return Array.from(new Set([...fromRecords, ...fromTargets])).sort();
+}
+
+function renderTargetSection(){
+  const year = document.getElementById('taYear').value;
+  const month = document.getElementById('taMonth').value;
+  const tbody = document.getElementById('taBody');
+  const people = getAllSalesPersons();
+
+  if(people.length===0){
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--muted)">No sales data or targets yet.</td></tr>';
+    destroy('targetAch');
+    return;
+  }
+
+  let rowsHtml = '';
+  const chartLabels = [], chartTarget = [], chartAch = [];
+
+  people.forEach(person=>{
+    const target = getTargetValue(person, year, month);
+    const achievement = getAchievement(person, year, month);
+    const remaining = target - achievement;
+    const remainingPct = target>0 ? (remaining/target*100) : null;
+
+    let status, statusClass;
+    if(target===0){
+      status = 'No target set'; statusClass='tag-factory';
+    }else if(achievement >= target){
+      status = 'Target Achieved ✓'; statusClass='tag-vislon';
+    }else if(remainingPct <= 25){
+      status = 'On Track'; statusClass='tag-nylon';
+    }else{
+      status = 'Behind'; statusClass='tag-metal';
+    }
+
+    rowsHtml += `<tr>
+      <td>${person}</td>
+      <td>${target ? '$'+target.toLocaleString(undefined,{minimumFractionDigits:2}) : '—'}</td>
+      <td>$${achievement.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+      <td>${target ? '$'+Math.max(remaining,0).toLocaleString(undefined,{minimumFractionDigits:2}) : '—'}</td>
+      <td>${target ? remainingPct.toFixed(1)+'%' : '—'}</td>
+      <td><span class="tag ${statusClass}">${status}</span></td>
+    </tr>`;
+
+    chartLabels.push(person);
+    chartTarget.push(target);
+    chartAch.push(achievement);
+  });
+
+  tbody.innerHTML = rowsHtml;
+
+  destroy('targetAch');
+  charts.targetAch = new Chart(document.getElementById('chartTargetAch'), {
+    type:'bar',
+    data:{
+      labels: chartLabels,
+      datasets:[
+        { label:'Target', data: chartTarget, backgroundColor:'rgba(91,141,239,0.35)', borderColor:'#5b8def', borderWidth:1, borderRadius:6 },
+        { label:'Achievement', data: chartAch, backgroundColor:'#3ddc97', borderRadius:6 }
+      ]
+    },
+    options: { ...baseOptions(true), ...legendStyle() }
+  });
+}
+
+function renderGrowthSection(){
+  const year = document.getElementById('growthYear').value;
+  const tbody = document.getElementById('growthBody');
+  const people = getAllSalesPersons();
+
+  if(people.length===0){
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--muted)">No sales data or targets yet.</td></tr>';
+    return;
+  }
+
+  let rowsHtml = '';
+  people.forEach(person=>{
+    let annualTarget = 0;
+    for(let m=1;m<=12;m++) annualTarget += getTargetValue(person, year, m);
+    const annualAchievement = getAchievement(person, year, null);
+    let growthHtml;
+    if(annualTarget===0){
+      growthHtml = '<span class="tag tag-factory">No target</span>';
+    }else{
+      const growthPct = ((annualAchievement - annualTarget)/annualTarget)*100;
+      const cls = growthPct>=0 ? 'tag-vislon' : 'tag-metal';
+      const sign = growthPct>=0 ? '+' : '';
+      growthHtml = `<span class="tag ${cls}">${sign}${growthPct.toFixed(1)}%</span>`;
+    }
+    rowsHtml += `<tr>
+      <td>${person}</td>
+      <td>${annualTarget ? '$'+annualTarget.toLocaleString(undefined,{minimumFractionDigits:0}) : '—'}</td>
+      <td>$${annualAchievement.toLocaleString(undefined,{minimumFractionDigits:0})}</td>
+      <td>${growthHtml}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = rowsHtml;
+}
+
+/* ---------- Targets management view ---------- */
+function clearTargetForm(){
+  document.getElementById('t_sales').value='';
+  document.getElementById('t_year').value='';
+  document.getElementById('t_month').value='1';
+  document.getElementById('t_value').value='';
+  editingTargetRowIndex = null;
+  document.getElementById('targetBtn').textContent = '＋ Add Target';
+  document.getElementById('targetStatus').textContent = '';
+}
+
+async function addTarget(){
+  const t = {
+    salesperson: document.getElementById('t_sales').value.trim(),
+    year: parseInt(document.getElementById('t_year').value) || new Date().getFullYear(),
+    month: parseInt(document.getElementById('t_month').value),
+    target: parseFloat(document.getElementById('t_value').value) || 0
+  };
+  if(!t.salesperson || !t.year || !t.target){
+    toast('Please fill Sales Person, Year and Target Value', 'err');
+    return;
+  }
+
+  if(editingTargetRowIndex !== null){
+    document.getElementById('targetStatus').textContent = 'Updating...';
+    if(SCRIPT_URL){
+      await updateTargetRemote(editingTargetRowIndex, t);
+    }else{
+      targets[editingTargetRowIndex-2] = t;
+      localStorage.setItem('localTargets', JSON.stringify(targets));
+    }
+    toast('Target updated ✓');
+  }else{
+    document.getElementById('targetStatus').textContent = 'Saving...';
+    await pushTarget(t);
+    toast('Target added ✓');
+  }
+
+  clearTargetForm();
+  await refreshData();
+  renderTargetsTable();
+}
+
+function renderTargetsTable(){
+  const tbody = document.getElementById('targetsBody');
+  if(targets.length===0){
+    tbody.innerHTML = '';
+    document.getElementById('targetsEmpty').style.display='block';
+    return;
+  }
+  document.getElementById('targetsEmpty').style.display='none';
+  tbody.innerHTML = targets.map((t,i)=>`
+    <tr>
+      <td>${t.salesperson||''}</td>
+      <td>${t.year||''}</td>
+      <td>${MONTH_NAMES_GLOBAL[monthToNumber(t.month)]||t.month}</td>
+      <td>$${Number(t.target||0).toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+      <td>
+        <button class="row-del" style="color:var(--accent-3)" onclick="editTarget(${i})">Edit</button>
+        <button class="row-del" onclick="removeTarget(${i})">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function editTarget(i){
+  const t = targets[i];
+  document.getElementById('t_sales').value = t.salesperson || '';
+  document.getElementById('t_year').value = t.year || '';
+  document.getElementById('t_month').value = t.month || '1';
+  document.getElementById('t_value').value = t.target || '';
+  editingTargetRowIndex = i + 2; // sheet row (1-indexed + header)
+  document.getElementById('targetBtn').textContent = '✓ Save Changes';
+  document.getElementById('targetStatus').textContent = 'Editing existing target — make changes and click "Save Changes".';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+async function removeTarget(i){
+  if(!confirm('Delete this target? This cannot be undone.')) return;
+  const rowIndex = i + 2;
+  targets.splice(i,1);
+  if(SCRIPT_URL){
+    await deleteTargetRemote(rowIndex);
+  }else{
+    localStorage.setItem('localTargets', JSON.stringify(targets));
+  }
+  toast('Target deleted');
+  await refreshData();
+  renderTargetsTable();
+}
+
+function baseOptions(showGrid){
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{ display:false, labels:{ color:'#7c8aa3' } },
+      tooltip:{ backgroundColor:'#0f1623', borderColor:'#1f2c42', borderWidth:1, titleColor:'#e7ecf5', bodyColor:'#e7ecf5', padding:10 }
+    },
+    scales:{
+      x:{ grid:{ color: showGrid?'#1f2c42':'transparent', display:showGrid }, ticks:{ color:'#7c8aa3', font:{size:11} } },
+      y:{ grid:{ color:'#1f2c42' }, ticks:{ color:'#7c8aa3', font:{size:11} } }
+    }
+  };
+}
+function legendStyle(){
+  return { legend:{ display:true, position:'bottom', labels:{ color:'#7c8aa3', boxWidth:12, padding:14, font:{size:11} } } };
+}
+
+/* ---------- Breakdown helper for exports ---------- */
+function getBreakdowns(data){
+  const trendMap = {};
+  data.forEach(r=>{
+    const d = parseDate(r.date);
+    if(!d) return;
+    const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    trendMap[key] = (trendMap[key]||0) + Number(r.value||0);
+  });
+  const trend = Object.keys(trendMap).sort().map(k=>[k, trendMap[k]]);
+  const byItem = Object.entries(groupSum(data,'generic'));
+  const byFactory = Object.entries(groupSum(data,'factory'));
+  const bySales = Object.entries(groupSum(data,'sales'));
+  const byCustomer = Object.entries(groupSum(data,'customer')).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const byBuyer = Object.entries(groupSum(data,'buyer')).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  return {trend, byItem, byFactory, bySales, byCustomer, byBuyer};
+}
+
+/* ---------- Exports ---------- */
+function exportExcel(){
+  const data = getFilteredForDashboard();
+  if(data.length===0){ toast('No data in current filter to export','err'); return; }
+  const total = data.reduce((s,r)=>s+Number(r.value||0),0);
+  const newSalesCount = data.filter(r=>r.newsales==='Yes').length;
+
+  const wb = XLSX.utils.book_new();
+
+  /* ---- Sheet 1: Sales Report (mirrors PDF layout) ---- */
+  const aoa = [
+    ['SALES REPORT'],
+    ['Generated: '+new Date().toLocaleString()],
+    ['Total PI Value: $'+total.toLocaleString(undefined,{minimumFractionDigits:2}), '', 'Total PIs: '+data.length, '', 'New Sales: '+newSalesCount],
+    [],
+    ['PI Date','Proforma Invoice No','Customer Name','Buyer Name','Item Code','Generic Item','Style Reference','PI Value (USD)','Factory','Sales Person Name','New Sales']
+  ];
+  data.forEach(r=>{
+    aoa.push([r.date, r.pino, r.customer, r.buyer, r.itemcode, r.generic, r.style, Number(r.value||0), r.factory, r.sales, r.newsales||'No']);
+  });
+  aoa.push([]);
+  aoa.push(['Sales Command Center — System designed & engineered by Towhid']);
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!merges'] = [
+    {s:{r:0,c:0}, e:{r:0,c:10}},
+    {s:{r:1,c:0}, e:{r:1,c:10}}
+  ];
+  ws['!cols'] = [{wch:12},{wch:18},{wch:22},{wch:18},{wch:14},{wch:12},{wch:14},{wch:14},{wch:10},{wch:18},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Sales Report');
+
+  /* ---- Sheet 2: Chart Data (data behind each dashboard graph) ---- */
+  const bd = getBreakdowns(data);
+  const aoa2 = [];
+  aoa2.push(['SALES REPORT — VISUAL ANALYSIS DATA']);
+  aoa2.push([]);
+  aoa2.push(['PI Value Over Time (Monthly Trend)']);
+  aoa2.push(['Month','PI Value']);
+  bd.trend.forEach(row=>aoa2.push(row));
+  aoa2.push([]);
+  aoa2.push(['Mix by Generic Item']);
+  aoa2.push(['Generic Item','PI Value']);
+  bd.byItem.forEach(row=>aoa2.push(row));
+  aoa2.push([]);
+  aoa2.push(['PI Value by Factory']);
+  aoa2.push(['Factory','PI Value']);
+  bd.byFactory.forEach(row=>aoa2.push(row));
+  aoa2.push([]);
+  aoa2.push(['PI Value by Sales Person']);
+  aoa2.push(['Sales Person','PI Value']);
+  bd.bySales.forEach(row=>aoa2.push(row));
+  aoa2.push([]);
+  aoa2.push(['Top Customers by PI Value']);
+  aoa2.push(['Customer','PI Value']);
+  bd.byCustomer.forEach(row=>aoa2.push(row));
+  aoa2.push([]);
+  aoa2.push(['Top Buyers by PI Value']);
+  aoa2.push(['Buyer','PI Value']);
+  bd.byBuyer.forEach(row=>aoa2.push(row));
+  aoa2.push([]);
+  aoa2.push(['Sales Command Center — System designed & engineered by Towhid']);
+
+  const ws2 = XLSX.utils.aoa_to_sheet(aoa2);
+  ws2['!merges'] = [{s:{r:0,c:0}, e:{r:0,c:1}}];
+  ws2['!cols'] = [{wch:26},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Chart Data');
+
+  XLSX.writeFile(wb, 'sales_report_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  toast('Excel exported ✓');
+}
+
+function addPdfBranding(doc){
+  doc.setFontSize(8);
+  doc.text('Sales Command Center — System designed & engineered by Towhid', 14, doc.internal.pageSize.height-8);
+}
+
+async function exportPDF(){
+  const data = getFilteredForDashboard();
+  if(data.length===0){ toast('No data in current filter to export','err'); return; }
+
+  toast('Generating PDF report...');
+
+  // Ensure dashboard charts exist and reflect current filters, even if user is on another tab
+  const dashboardView = document.getElementById('view-dashboard');
+  const wasActive = dashboardView.classList.contains('active');
+  const prevActiveBtn = document.querySelector('.nav-btn.active');
+  if(!wasActive){
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    dashboardView.classList.add('active');
+    dashboardView.style.position='fixed';
+    dashboardView.style.left='-9999px';
+    dashboardView.style.top='0';
+    renderDashboard();
+    await new Promise(r=>setTimeout(r, 400));
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'landscape'});
+  const total = data.reduce((s,r)=>s+Number(r.value||0),0);
+  const newSalesCount = data.filter(r=>r.newsales==='Yes').length;
+
+  doc.setFontSize(16);
+  doc.text('Sales Report', 14, 16);
+  doc.setFontSize(10);
+  doc.text('Generated: '+new Date().toLocaleString(), 14, 22);
+  doc.text('Total PI Value: $'+total.toLocaleString(undefined,{minimumFractionDigits:2})+'   |   Total PIs: '+data.length+'   |   New Sales: '+newSalesCount, 14, 28);
+
+  doc.autoTable({
+    startY:34,
+    head:[['PI Date','PI No','Customer','Buyer','Item Code','Generic','Style Ref','PI Value (USD)','Factory','Sales Person','New Sales']],
+    body:data.map(r=>[r.date,r.pino,r.customer,r.buyer,r.itemcode,r.generic,r.style,'$'+Number(r.value||0).toLocaleString(undefined,{minimumFractionDigits:2}),r.factory,r.sales,r.newsales||'No']),
+    styles:{ fontSize:8 },
+    headStyles:{ fillColor:[15,22,35] }
+  });
+  addPdfBranding(doc);
+
+  // ---- Visual Analysis pages: embed actual dashboard charts as images ----
+  const chartList = [
+    {key:'trend', title:'PI Value Over Time'},
+    {key:'item', title:'Mix by Generic Item'},
+    {key:'factory', title:'PI Value by Factory'},
+    {key:'sales', title:'PI Value by Sales Person'},
+    {key:'customer', title:'Top Customers by PI Value'},
+    {key:'targetAch', title:'Target vs Achievement (Selected Month)'}
+  ];
+
+  for(let i=0;i<chartList.length;i+=2){
+    doc.addPage();
+    doc.setFontSize(14);
+    doc.text('Visual Analysis', 14, 16);
+
+    const c1 = chartList[i];
+    if(charts[c1.key]){
+      doc.setFontSize(10);
+      doc.text(c1.title, 14, 26);
+      const img1 = charts[c1.key].toBase64Image();
+      doc.addImage(img1, 'PNG', 14, 30, 125, 80);
+    }
+    const c2 = chartList[i+1];
+    if(c2 && charts[c2.key]){
+      doc.setFontSize(10);
+      doc.text(c2.title, 150, 26);
+      const img2 = charts[c2.key].toBase64Image();
+      doc.addImage(img2, 'PNG', 150, 30, 125, 80);
+    }
+    addPdfBranding(doc);
+  }
+
+  // restore original view if we switched
+  if(!wasActive){
+    dashboardView.classList.remove('active');
+    dashboardView.style.position='';
+    dashboardView.style.left='';
+    dashboardView.style.top='';
+    document.getElementById('view-'+prevActiveBtn.dataset.view).classList.add('active');
+  }
+
+  doc.save('sales_report_'+new Date().toISOString().slice(0,10)+'.pdf');
+  toast('PDF exported ✓');
+}
+
+/* ---------- Apps Script downloader ---------- */
+function downloadScript(){
+  const code = `function doGet(e) {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName('Sales');
+  var data = sheet.getDataRange().getValues();
+  var headers = data.shift();
+  var records = data.map(function(row){
+    return {
+      date: formatDate(row[0]),
+      pino: row[1],
+      customer: row[2],
+      buyer: row[3],
+      itemcode: row[4],
+      generic: row[5],
+      style: row[6],
+      value: row[7],
+      factory: row[8],
+      sales: row[9],
+      newsales: row[10] || 'No'
+    };
+  });
+
+  var targets = [];
+  var targetSheet = ss.getSheetByName('Targets');
+  if (targetSheet) {
+    var tdata = targetSheet.getDataRange().getValues();
+    tdata.shift();
+    targets = tdata.map(function(row){
+      return {
+        salesperson: row[0],
+        year: row[1],
+        month: row[2],
+        target: row[3]
+      };
+    });
+  }
+
+  return ContentService.createTextOutput(JSON.stringify({records: records, targets: targets}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName('Sales');
+  var targetSheet = ss.getSheetByName('Targets');
+  var body = JSON.parse(e.postData.contents);
+
+  if (body.action === 'add') {
+    var r = body.record;
+    sheet.appendRow([r.date, r.pino, r.customer, r.buyer, r.itemcode, r.generic, r.style, r.value, r.factory, r.sales, r.newsales || 'No']);
+  } else if (body.action === 'update') {
+    var r = body.record;
+    var rowIndex = body.rowIndex;
+    sheet.getRange(rowIndex, 1, 1, 11).setValues([[r.date, r.pino, r.customer, r.buyer, r.itemcode, r.generic, r.style, r.value, r.factory, r.sales, r.newsales || 'No']]);
+  } else if (body.action === 'delete') {
+    sheet.deleteRow(body.rowIndex);
+  } else if (body.action === 'addTarget') {
+    var t = body.target;
+    targetSheet.appendRow([t.salesperson, t.year, t.month, t.target]);
+  } else if (body.action === 'updateTarget') {
+    var t = body.target;
+    var trIndex = body.rowIndex;
+    targetSheet.getRange(trIndex, 1, 1, 4).setValues([[t.salesperson, t.year, t.month, t.target]]);
+  } else if (body.action === 'deleteTarget') {
+    targetSheet.deleteRow(body.rowIndex);
+  }
+
+  return ContentService.createTextOutput(JSON.stringify({status:'ok'}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function formatDate(d) {
+  if (Object.prototype.toString.call(d) === '[object Date]') {
+    return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  return d;
+}
+
+// === REPLACE THIS WITH YOUR GOOGLE SHEET ID (from its URL between /d/ and /edit) ===
+const SHEET_ID = "PASTE_YOUR_SHEET_ID_HERE";
+`;
+  const blob = new Blob([code], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'apps-script.gs';
+  a.click();
+  toast('apps-script.gs downloaded ✓');
+}
+
+/* ---------- Init ---------- */
+window.addEventListener('DOMContentLoaded', ()=>{
+  document.getElementById('f_date').valueAsDate = new Date();
+  if(SCRIPT_URL){
+    document.getElementById('scriptUrl').value = SCRIPT_URL;
+  }
+  refreshData();
+});
+
+/* ---------- PWA: register service worker ---------- */
 if('serviceWorker' in navigator){
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{/* silent fail if offline-first not critical */});
   });
 }
 </script>
+
 </body>
 </html>

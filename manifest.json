@@ -1,25 +1,37 @@
 {
-  "name": "IDEAL Fastener — Quotation Generator",
-  "short_name": "IFA Quotation",
-  "description": "Quotation generator for IDEAL FASTENER CORPORATION zipper price list",
-  "start_url": "./",
+  "name": "Sales Analytics Dashboard",
+  "short_name": "Sales Dashboard",
+  "description": "PI tracking, quotation analytics and target vs achievement dashboard, built by Towhid.",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "orientation": "any",
   "background_color": "#0a0e17",
   "theme_color": "#0a0e17",
+  "orientation": "any",
   "icons": [
     {
       "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
