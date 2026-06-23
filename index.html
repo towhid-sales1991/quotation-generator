@@ -710,7 +710,7 @@ function exportPDF(){
 
   doc.autoTable({
     startY: metaY + 6,
-    head: [['#','Item Code','Description','Base Len','Desired Len','Base/100pcs','Add 1"/100pcs','Final Rate/100pcs']],
+    head: [['#','Item Code','Description','Base Length','Desired Length','Base/100pcs','Add 1"/100pcs','Final Rate/100pcs']],
     body: body,
     styles: { fontSize: 7.5, cellPadding: 2.4 },
     headStyles: { fillColor: [15,22,35], textColor: [255,255,255] },
@@ -721,8 +721,12 @@ function exportPDF(){
   });
 
   doc.setFontSize(8);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(60,60,60);
+  doc.text('IDEAL FASTENER CORPORATION', 14, doc.internal.pageSize.getHeight()-13);
+  doc.setFont(undefined, 'normal');
   doc.setTextColor(140,140,140);
-  doc.text('Quotation Generator — IDEAL FASTENER CORPORATION — engineered by Towhid', 14, doc.internal.pageSize.getHeight()-10);
+  doc.text('Quotation Generator System Designed by Towhid', 14, doc.internal.pageSize.getHeight()-8);
 
   doc.save(qNo + '.pdf');
   toast('PDF exported', 'ok');
