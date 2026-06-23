@@ -322,12 +322,16 @@ footer .logo-line span{ color:var(--accent); }
 
     <div class="form-grid" style="margin-top:14px;">
       <div class="field">
-        <label>Additional Charges, USD <span style="color:var(--muted); font-weight:400;">(optional, added to base price)</span></label>
+        <label>Additional Charges, USD <span style="color:var(--muted); font-weight:400;">(optional, added after discount)</span></label>
         <input type="number" id="addCharge" step="0.01" min="0" placeholder="e.g. 0.50" disabled>
       </div>
       <div class="field">
-        <label>Discount, % <span style="color:var(--muted); font-weight:400;">(optional, on base + add 1")</span></label>
-        <input type="number" id="discountPct" step="0.01" min="0" max="100" placeholder="e.g. 10" disabled>
+        <label>Discount on Base Price, % <span style="color:var(--muted); font-weight:400;">(optional)</span></label>
+        <input type="number" id="discountBase" step="0.01" min="0" max="100" placeholder="e.g. 10" disabled>
+      </div>
+      <div class="field">
+        <label>Discount on Add 1", % <span style="color:var(--muted); font-weight:400;">(optional)</span></label>
+        <input type="number" id="discountAdd1" step="0.01" min="0" max="100" placeholder="e.g. 5" disabled>
       </div>
     </div>
 
@@ -370,8 +374,8 @@ footer .logo-line span{ color:var(--accent); }
 
 <div class="zip-divider"></div>
 <footer>
-  <div class="logo-line">QUOTATION GENERATOR <span>•</span> System designed &amp; engineered by <span>Towhid</span></div>
-  <div style="margin-top:6px;">IDEAL FASTENER CORPORATION · Powered by Claude</div>
+  <div class="logo-line">IDEAL FASTENER CORPORATION</div>
+  <div style="margin-top:5px; color:var(--muted); font-size:11px;">Quotation Generator System Designed by <span style="color:var(--accent);">Towhid</span></div>
 </footer>
 
 <div class="toast" id="toast"></div>
@@ -476,11 +480,11 @@ function renderItemInfo(){
 
 function updateAddItemState(){
   const has = !!selectedItem;
-  ['lenCm','lenIn','pullerCode','ipFinish','addCharge','discountPct'].forEach(id => {
+  ['lenCm','lenIn','pullerCode','ipFinish','addCharge','discountBase','discountAdd1'].forEach(id => {
     document.getElementById(id).disabled = !has;
   });
   if(!has){
-    ['lenCm','lenIn','pullerCode','ipFinish','addCharge','discountPct'].forEach(id => {
+    ['lenCm','lenIn','pullerCode','ipFinish','addCharge','discountBase','discountAdd1'].forEach(id => {
       document.getElementById(id).value = '';
     });
   }
@@ -509,7 +513,8 @@ document.getElementById('lenIn').addEventListener('input', () => {
 });
 
 document.getElementById('addCharge').addEventListener('input', refreshPricingPreview);
-document.getElementById('discountPct').addEventListener('input', refreshPricingPreview);
+document.getElementById('discountBase').addEventListener('input', refreshPricingPreview);
+document.getElementById('discountAdd1').addEventListener('input', refreshPricingPreview);
 
 /* ---------- Pricing engine ---------- */
 function billableLength(inches){
@@ -519,15 +524,12 @@ function billableLength(inches){
 function getAdjustedPrices(){
   if(!selectedItem) return null;
   const addCharge = parseFloat(document.getElementById('addCharge').value) || 0;
-  const discount = Math.min(100, Math.max(0, parseFloat(document.getElementById('discountPct').value) || 0));
-  let base = selectedItem.basePrice + addCharge;
-  let add1 = selectedItem.add1;
-  if(discount > 0){
-    const mult = 1 - (discount / 100);
-    base = base * mult;
-    add1 = add1 * mult;
-  }
-  return { base, add1, discount };
+  const discBase = Math.min(100, Math.max(0, parseFloat(document.getElementById('discountBase').value) || 0));
+  const discAdd1 = Math.min(100, Math.max(0, parseFloat(document.getElementById('discountAdd1').value) || 0));
+  // discounts apply ONLY to the raw price list values — addCharge is completely immune
+  const base = selectedItem.basePrice * (1 - discBase/100) + addCharge;
+  const add1 = selectedItem.add1 * (1 - discAdd1/100);
+  return { base, add1, discBase, discAdd1, addCharge };
 }
 
 function finalRateFor(adj, inches){
@@ -549,8 +551,11 @@ function refreshPricingPreview(){
     return;
   }
   const adj = getAdjustedPrices();
-  sub.textContent = 'Base/100pcs: ' + fmt(adj.base) + '   ·   Add 1"/100pcs: ' + fmt(adj.add1) +
-    (adj.discount > 0 ? ('   ·   Discount: ' + adj.discount + '%') : '');
+  let subParts = ['Base/100pcs: ' + fmt(adj.base), 'Add 1"/100pcs: ' + fmt(adj.add1)];
+  if(adj.discBase > 0) subParts.push('Base disc: ' + adj.discBase + '%');
+  if(adj.discAdd1 > 0) subParts.push('Add 1" disc: ' + adj.discAdd1 + '%');
+  if(adj.addCharge > 0) subParts.push('Extra charge: +$' + adj.addCharge.toFixed(2));
+  sub.textContent = subParts.join('   ·   ');
   const inch = parseFloat(document.getElementById('lenIn').value);
   const rate = finalRateFor(adj, inch);
   if(rate === null){
@@ -582,7 +587,8 @@ function addToQuotation(){
     lengthIn: hasLength ? inch : null,
     basePrice: adj.base,
     add1: adj.add1,
-    discount: adj.discount,
+    discBase: adj.discBase,
+    discAdd1: adj.discAdd1,
     finalRate: finalRate
   });
   renderQuotation();
@@ -594,7 +600,8 @@ function addToQuotation(){
   document.getElementById('pullerCode').value = '';
   document.getElementById('ipFinish').value = '';
   document.getElementById('addCharge').value = '';
-  document.getElementById('discountPct').value = '';
+  document.getElementById('discountBase').value = '';
+  document.getElementById('discountAdd1').value = '';
   renderItemInfo();
   updateAddItemState();
   searchInput.focus();
